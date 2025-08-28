@@ -88,7 +88,7 @@
                      <div class = "grid">
                         <!-- Streaks panel -->
                          <div class = "block">
-                            <div class = "label">Streaks</div>\
+                            <div class = "label">Streaks</div>
                             <div style = "display: flex; gap: 14px; margin-top: 6px;">
                                 <div>
                                     <div class = "muted">Current</div>
@@ -222,7 +222,55 @@
             let ticking = false;
             // setInterval handle
             let tickHandle = "null";
-            
+
+            // Starts a new session or resumes if currently paused (if there is no open session, push start)
+            const startTimer = () => {
+                // Ensures it's on today's session
+                ensureToday();
+                // Looks for open (no end) session
+                const open = state.sessions.find(s => s.end == null);
+                // If none are open
+                if(!open){
+                    // Start a new one
+                    state.sessions.push({ start: Date.now(), end: null})
+                    // Persists
+                    saveState(state);
+                }
+                // Marks running 
+                ticking = True;
+                // Updates button label
+                btnStartPause.textContent = "Pause";
+                // Redish accent for pause state
+                btnStartPause.classList.add("danger");
+                // Removes green accent
+                btnStartPause.classList.remove("primary");
+                // Updates UI every second
+                tickHandle = setInterval(render, 1000);
+                // Immediate render
+                render();
+            };
+
+            // Pauses by stamping the end time on the open session
+            const pauseTimer = () => {
+                // Finds open session
+                const open = state.sessions.find(s => s.end == null);
+                // Stamp end timestamp
+                if(open) open.emnd = Date.now();
+                // Mark not running
+                ticking = false;
+                // Updates label
+                btnStartPause.textContent = "Start";
+                // Green again
+                btnStartPause.classList.add("primary");
+                // Removes red
+                btnStartPause.classList.remove("danger");
+                // Stops interval
+                if(tickHanbdle) clearInterval(tickHandle);
+                // Persists
+                saveState(state); 
+                // Refreshes UI
+                render();
+            }
           </script>
     </body>
 </html>
