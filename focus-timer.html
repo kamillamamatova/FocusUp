@@ -172,6 +172,24 @@
             state.lastOpened ??= todayKey();
             // Persists any defaults
             saveState(state);
+
+            // Dailly rollover
+            // If a new day has started since last opened, clear sessions (but keep history)
+            const ensureToday = () => {
+                // Today
+                const t = todayKey();
+                // New day?
+                if(state.lastOpened !== t){
+                    // Clears sessions for fresh day
+                    state.sessions = [];
+                    // Updates last opened day
+                    state.lastOpened = t;
+                    // Persists
+                    saveState(state);
+                }
+            };
+            // Runs at load
+            ensureToday();
           </script>
     </body>
 </html>
