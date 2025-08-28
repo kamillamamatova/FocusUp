@@ -286,6 +286,21 @@
                 saveState(state);
                 render();
             };
+
+            // Computes today's elapsed seconds from sessions
+            const calcElapsedSecs = () => {
+                // Accumalator
+                let total = 0;
+                // Loops sessions
+                for(const s of state.sessions){
+                    // Uses now for open sessions
+                    const end = (s.end ?? Date.now());
+                    // Adds positive seconds
+                    total += Math.max(0, Math.floor((end - s.start) / 1000));
+                }
+                // Returns total seconds
+                return total;
+            }
           </script>
     </body>
 </html>
