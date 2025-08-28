@@ -50,5 +50,5 @@ Feel free to open an issue if you’d like to suggest improvements.
 ---
 
 ## License
-Created and maintained by Kamilla Mamatova
+Created and maintained by **Kamilla Mamatova**
 If you found this helpful, feel free to star the repo and share!
