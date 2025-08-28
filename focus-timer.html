@@ -39,4 +39,35 @@
             @media(max-width: 720px){ .grid{ grid-template-columns: 1fr; } .big{ font-size: 38px;}}
            </style>
     </head>
+    <body>
+        <!-- Outer container -->
+         <div class = "wrap">
+            <!-- Main card container -->
+             <div class = "card">
+                <!-- App heading -->
+                 <h1>Focus Timer</h1>
+                 <!-- Short description line -->
+                  <div class = "sub">Count up toward a daily goal, log the day, and keep your streak alive.</div>
+                  
+                  <!-- Key Performance Indicator (KPI) showing -->
+                   <div class = "row">
+                    <!-- Elapsed block -->
+                     <div class = "block">
+                        <div class = "label">Elapsed</div>
+                        <div id = "elapsed" class = "big">00:00:00</div>
+                     </div>
+                     <!-- Remaining block (until goal) -->
+                      <div class = "block">
+                        <div class = "label">Remaining to goal</div>
+                        <div id = "remaining" class = "big">02:00:00</div>
+                      </div>
+                      <!-- Overtime block (after goal) -->
+                       <div class = "block">
+                        <div class = "label">Overtime</div>
+                        <div id = "overtime" class = "big">00:00:00</div>
+                       </div>
+                   </div>
+             </div>
+         </div>
+    </body>
 </html>
