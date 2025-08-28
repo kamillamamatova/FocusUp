@@ -134,6 +134,21 @@
                 // Final formatted string
                 return '${sign}${two(h)}:${two(m)}:${two(sec)}';
             };
+
+            // Today's local YYYY-MM-DD (no timezone surprises)
+            const todayKey = () => {
+                // Now
+                const d = new Date();
+                // Year
+                const y = d.getFullYear();
+                // Month 01..12
+                const m = String(d.getMonth() + 1).padStart(2, "0");
+                // Day 01..31
+                const day = String(d.getDate()).padStart(2, "0");
+                // YYYY-MM-DD
+                return '${y}-${m}-${day}';
+            }
+            
           </script>
     </body>
 </html>
