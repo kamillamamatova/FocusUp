@@ -148,6 +148,14 @@
                 // YYYY-MM-DD
                 return '${y}-${m}-${day}';
             }
+
+            // LocalStorage helpers w/ a single namespace key
+            // Storage bucket key
+            const STORE_KEY = "focusTimer.v1";
+            // Loads or empties object
+            const loadState = () => JSON.parse(localStorage.getItem(STORE_KEY) || "{}");
+            // Saves JSON
+            const saveState = obj => localStorage.setItem(STORE_KEY, JSON, stringify(obj));
             
           </script>
     </body>
