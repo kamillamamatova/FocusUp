@@ -113,6 +113,27 @@
                      </div>
              </div>
          </div>
-         
+
+         <!-- App logic in vanilla JS -->
+          <script>
+            // Utilities
+            // Formats seconds to HH:MM:SS string
+            const fmt = s => {
+                // Keeps minus sign for negative values
+                const sign = s < 0 ? "-" : "";
+                // Absolute seconds, rounded
+                const t = Math.abs(Math.round(s));
+                // Hours part
+                const h = Math.floor(t / 3600);
+                // Minutes part
+                const m = Math.floor((t % 3600) / 60);
+                // Seconds part
+                const sec = t % 60;
+                // Pad helper
+                const two = n => String(n).padStart(2, "0");
+                // Final formatted string
+                return '${sign}${two(h)}:${two(m)}:${two(sec)}';
+            };
+          </script>
     </body>
 </html>
