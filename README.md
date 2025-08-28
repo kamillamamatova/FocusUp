@@ -1,6 +1,6 @@
 # FocusUp
 
-A simple, embeddable timer for students and makers: count up to your daily goal, log sessions, and keep streaks alive.
+A simple, embeddable timer for students and makers: count up to your daily goal, log sessions, and keep streaks alive. <br>
 Designed for students, developers, and makers who want accountability inside **Notion** or the browser.
 
 ---
@@ -31,7 +31,7 @@ Designed for students, developers, and makers who want accountability inside **N
 - **Reset** clear today's timer (does not delete history)
 - **Finish Day** log today's total, update streaks, and reset
 - **Goal (mins)** set your daily focus target
-- **Sessions today** track how many separate work blocks you've done
+- **Sessions today** track how many separate work blocks you've done <br>
 **Pro tip** Use this as an /embed block in Notion for a seamless planner + timer workflow.
 
 ---
@@ -44,11 +44,11 @@ Designed for students, developers, and makers who want accountability inside **N
 ---
 
 ## Contributing
-Pull requests and feature requests are welcome!
+Pull requests and feature requests are welcome! <br>
 Feel free to open an issue if you’d like to suggest improvements.
 
 ---
 
 ## License
-Created and maintained by **Kamilla Mamatova**
+Created and maintained by **Kamilla Mamatova** <br>
 If you found this helpful, feel free to star the repo and share!
