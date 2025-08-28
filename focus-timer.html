@@ -157,6 +157,21 @@
             // Saves JSON
             const saveState = obj => localStorage.setItem(STORE_KEY, JSON, stringify(obj));
             
+            // State
+            // Loads persisted state
+            let state = loadState();
+            // Default daily goal (mins)
+            state.goalMins ??= 120;
+            // Session array for today (each {start, end})
+            state.sessions ??= [];
+            // Map of date ({minutes, goalMins, met})
+            state.history ??= {};
+            // Best streak count
+            state.bestStreak ??= 0;
+            // Last open date to auto rollover 
+            state.lastOpened ??= todayKey();
+            // Persists any defaults
+            saveState(state);
           </script>
     </body>
 </html>
