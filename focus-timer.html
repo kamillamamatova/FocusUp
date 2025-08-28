@@ -270,7 +270,22 @@
                 saveState(state); 
                 // Refreshes UI
                 render();
-            }
+            };
+
+            // Reset clears all of today's sessions (doesn't touch history)
+            const resetToday = () => {
+                // Asks user for confirmation
+                if(!confirm("Reset today's timer? This clears current sessions but keeps history.")) return;
+                // Is there an open session?
+                const running = state.sessions.some(s => s.end == null);
+                // Ensure it's paused
+                if(running) pauseTimer();
+                // Clears sessions
+                state.sessions = [];
+
+                saveState(state);
+                render();
+            };
           </script>
     </body>
 </html>
