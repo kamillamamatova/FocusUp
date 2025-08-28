@@ -67,6 +67,22 @@
                         <div id = "overtime" class = "big">00:00:00</div>
                        </div>
                    </div>
+
+                   <!-- Control row -->
+                    <div class = "controls">
+                        <!-- Start/pause toggle button -->
+                         <button id = "StartPauseBtn" class = "primary">Start</button>
+                         <!-- Reset current session timer -->
+                          <button id = "ResetBtn" class = "danger">Reset</button>
+                          <!-- Finish Day logs today's minutes and updates streaks -->
+                           <button id = "FinishDayBtn" class = "info">Finish Day</button>
+                           <!-- Numeric input for daily goal (minutes) -->
+                            <label class = "pill">Goal (mins): <input id = "goalInput" type = "number" min = "1" step = "5" value = "120"></label>
+                            <!-- Session counter display -->
+                             <span id = "sessionsPill" class = "pill">Sessions today: 0</span> 
+                             <!-- Status pill that flips when goal is met -->
+                              <span id = "statusPill" class = "pill">Status: working...</span>
+                    </div>
              </div>
          </div>
     </body>
