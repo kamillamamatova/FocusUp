@@ -83,6 +83,25 @@
                              <!-- Status pill that flips when goal is met -->
                               <span id = "statusPill" class = "pill">Status: working...</span>
                     </div>
+                    
+                    <!-- Secondary grid: streak info + history table -->
+                     <div class = "grid">
+                        <!-- Streaks panel -->
+                         <div class = "block">
+                            <div class = "label">Streaks</div>\
+                            <div style = "display: flex; gap: 14px; margin-top: 6px;">
+                                <div>
+                                    <div class = "muted">Current</div>
+                                    <div id = "currentStreak" class = "big">0</div>
+                                </div>
+                                <div>
+                                    <div class = "muted">Best</div>
+                                    <div id = "bestStreak" class = "big">0</div>
+                                </div>
+                            </div>
+                            <div class = "footer">A day counts if minutes >= goal. "Finish Day" records the total.</div>
+                         </div>
+                     </div>
              </div>
          </div>
     </body>
