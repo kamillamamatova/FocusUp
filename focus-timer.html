@@ -360,6 +360,32 @@
                 alert('Logged ${mins} min for ${date}${met ? " (goal, met)" : ""}.');  
                 render();
             };
+
+            // Computes current streak (consecutive met days up to today)
+            const currentStreak = () => {
+                // Streak counter
+                let count = 0;
+                // Starts at today
+                let d = new Date(todayKey());
+                // Walks backwards day by day while met == true
+                while(true){
+                    // YYYY-MM-DD
+                    const key = d.toISOString().slice(0, 10);
+                    // History record for that day
+                    const rec = state.history[key];
+                    // If exists and met
+                    if(rec && rec.met){
+                        count++;
+                        // Moves back one day
+                        d.setDate(d.getDate() - 1);
+                    }
+                    // Breaks when not met
+                    else{
+                        break;
+                    }
+                }
+                return count;
+            };
           </script>
     </body>
 </html>
