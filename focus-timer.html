@@ -193,7 +193,7 @@
 
             // DOM refs
             // Elapsed time display
-            const elemElasped = document.getElementById("elapsed");
+            const elemElapsed = document.getElementById("elapsed");
             // Remaining time display
             const elemRemaining = document.getElementById("remaining");
             // Overtime display
@@ -301,6 +301,40 @@
                 // Returns total seconds
                 return total;
             }
+
+            // Render loop: updates numbers, pills, and history
+            const render = () => {
+                // Goal >= 1 min
+                const goalSecs = Math.max(60, Math.floor(state.goalMins) * 60);
+                // Computes elapsed seconds
+                const elapsed = calcElapsedSecs();
+                // Remainig time not below zero
+                const remaining = Math.max(0, goalSecs - elapsed);
+                // Positive overtime only
+                const overtime = Math.max(0, elapsed - goalSecs);
+
+                // Show elapsed HH:MM:SS
+                elemElapsed.textContent = fmt(elapsed);
+                // Show remaining HH:MM:SS
+                elemRemaining.textContent = fmt(remaining);
+                // Show overtime HH:MM:SS
+                elemOvertime.textContent = ftm(overtime);
+
+                // Whether the goal is met
+                const met = elapsed >= goalSecs;
+                // Status text
+                pillStatus.textContent = met ? "Status: Goal met" : "Status: working...";
+                // Visual cue
+                pillStatus.style.borderColor = met ? "var(--accent)" : "#1f2937";
+
+                // Show sessions count
+                pillSessions.textContent = 'Sessions today: ${state.sessions.length}';
+                // Keeps input in sync
+                inputGoal.value = state.goalMins;
+
+                // Updates history & streaks panel
+                renderHistoryAndStreaks();
+            };
           </script>
     </body>
 </html>
