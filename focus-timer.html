@@ -386,6 +386,40 @@
                 }
                 return count;
             };
+
+            // Recomputes best streak across all days (O(n) over history)
+            const recomputeBestStreak = () => {
+                // Sorts dates ascending
+                const keys = Object.keys(state.history).sort();
+                // Best streak seen
+                let best = 0;
+                // Current streak counter
+                let cur = 0;
+                // Prebvious date to check continuity
+                let prev = null;
+                // For each date
+                for(const k of keys){
+                    // Record
+                    const rec = state.history[k];
+                    // Checks if this day directly follows the previous day
+                    const contiguous = prev && ((new Date(k) - new Date(prev)) === 24 * 3600 * 1000);
+                    // Resets when gap exists
+                    if(!contiguous) cur = 0;
+                    // Updates counters
+                    if(rec.met){
+                        cur++;
+                        best = Math.max(best, cur);
+                    }
+                    else{
+                        cur = 0;
+                    }
+                    // Tracks previous
+                    prev = k;
+                }
+                // Stores best
+                state.bestStreak = best;
+                saveState(state);
+            };
           </script>
     </body>
 </html>
