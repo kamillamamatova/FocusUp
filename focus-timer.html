@@ -335,6 +335,31 @@
                 // Updates history & streaks panel
                 renderHistoryAndStreaks();
             };
+
+            // History and Streaks
+            // Finish Day logs minutes and updates streaks
+            const finishDay = () => {
+                // Pauses first if running
+                if(ticking) pauseTimer();
+                // Today YYYY-MM-DD
+                const date = todayKey();
+                // Total minutes rounded
+                const mins = Math.round(calcElapsedSecs() / 60);
+                // Goal minutes int
+                const goal = Math.max(1, Math.floor(state.goalMins));
+                // Goal met flag
+                const met = mins >= goal;
+                // Writes history entry
+                state.history[date] = { minutes: mins, goalMins: goal, met};
+                // Clears sessions for a fresh next start
+                state.sessions = [];
+                saveState(state);
+                // Recomputes best streak record
+                recomputeBestStreak();
+                // Alert
+                alert('Logged ${mins} min for ${date}${met ? " (goal, met)" : ""}.');  
+                render();
+            };
           </script>
     </body>
 </html>
