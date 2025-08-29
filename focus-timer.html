@@ -420,6 +420,35 @@
                 state.bestStreak = best;
                 saveState(state);
             };
+
+            // Renders history table and streak numbers
+            const renderHistoryAndStreaks = () => {
+                // Renders streak digits
+                streakCurrent.textContent = String(currentStreak());
+                streakBest.textContent = String(state.bestStreak || 0);
+
+                // Builds a small HTML table for history (most recent first)
+                // [date, record] pairs
+                const rows = Object.entries(state.history)
+                // Sort by date desc
+                .sort((a, b) => b[0].localCompare(a[0]))
+                // Limits to last 30 entries
+                .slice(0, 30)
+                // Maps to table rows
+                .map(([date, rec]) => {
+                    // Color class
+                    const cls = rec.met ? "ok" : (rec.minutes > 0 ? "warn" : "neg");
+                    return `<tr>
+                        <td>${date}</td>
+                        <td>${rec.minutes} min / ${rec.goalMins}</td>
+                        <td class="${cls}">${rec.met ? "Met" : (rec.minutes>0 ? "Missed" : "—")}</td>
+                    </tr>`;
+                }).join(""); // Joins to single HTML string
+                // If there is no history, shows placeholder
+                const table = rows ? '<table><thead><tr><th>Date</th><th>Minutes</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>' : '<div class="muted" style="padding:8px 10px;">No history yet. Press “Finish Day” to log your work.</div>';
+                // Injects into container
+                historyBox.innerHTML = table;
+            };
           </script>
     </body>
 </html>
