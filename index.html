@@ -71,11 +71,11 @@
                    <!-- Control row -->
                     <div class = "controls">
                         <!-- Start/pause toggle button -->
-                         <button id = "StartPauseBtn" class = "primary">Start</button>
+                         <button id = "startPauseBtn" class = "primary" onClick = "toggleStartPause()">Start</button>
                          <!-- Reset current session timer -->
-                          <button id = "ResetBtn" class = "danger">Reset</button>
+                          <button id = "resetBtn" class = "danger">Reset</button>
                           <!-- Finish Day logs today's minutes and updates streaks -->
-                           <button id = "FinishDayBtn" class = "info">Finish Day</button>
+                           <button id = "finishBtn" class = "info">Finish Day</button>
                            <!-- Numeric input for daily goal (minutes) -->
                             <label class = "pill">Goal (mins): <input id = "goalInput" type = "number" min = "1" step = "5" value = "120"></label>
                             <!-- Session counter display -->
@@ -469,6 +469,17 @@
                 saveState(state);
                 render(); 
             });
+
+            // Fallback inline handler
+            function toggleStartPause(){
+                try{
+                    ticking ? pauseTimer() : startTimer();
+                }
+                catch(e){
+                    console.error(e);
+                    alert("Time error - see console for details.");
+                }
+            }
 
             // Initial boot
             // Initializes best streak
