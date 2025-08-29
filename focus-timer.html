@@ -469,6 +469,12 @@
                 saveState(state);
                 render(); 
             });
+
+            // Initial boot
+            // Initializes best streak
+            recomputeBestStreak();
+            // First render
+            render();
           </script>
     </body>
 </html>
