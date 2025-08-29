@@ -13,7 +13,7 @@
             *{ box-sizing: border-box;}
             body{ margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; background: var(--bg); color: var(--text); display: flex; justify-content: center; padding: 20px;}
             .wrap{ width: min(820px, 100%);}
-            .card{ background: linear-gradient(180deg, #0b1220, var(--card)); border: 1px solid #1f2937; border-radius: 16px; padding: 20px; box-shadow: 0 10px 30px rgba(0, 0, 0, 25);}
+            .card{ background: linear-gradient(180deg, #0b1220, var(--card)); border: 1px solid #1f2937; border-radius: 16px; padding: 20px; box-shadow: 0 10px 30px rgba(0, 0, 0, .25);}
             h1{ margin: 0 0 6px; font-size: 24px; line-height: 1.2;}
             .sub{ color: var(--muted); margin-bottom: 16px;}
             .row{ display: flex; gap: 14px; flex-wrap: wrap;}
@@ -71,7 +71,7 @@
                    <!-- Control row -->
                     <div class = "controls">
                         <!-- Start/pause toggle button -->
-                         <button id = "startPauseBtn" class = "primary" onClick = "toggleStartPause()">Start</button>
+                         <button id = "startPauseBtn" class = "primary">Start</button>
                          <!-- Reset current session timer -->
                           <button id = "resetBtn" class = "danger">Reset</button>
                           <!-- Finish Day logs today's minutes and updates streaks -->
@@ -132,7 +132,7 @@
                 // Pad helper
                 const two = n => String(n).padStart(2, "0");
                 // Final formatted string
-                return '${sign}${two(h)}:${two(m)}:${two(sec)}';
+                return `${sign}${two(h)}:${two(m)}:${two(sec)}`;
             };
 
             // Today's local YYYY-MM-DD (no timezone surprises)
@@ -146,7 +146,7 @@
                 // Day 01..31
                 const day = String(d.getDate()).padStart(2, "0");
                 // YYYY-MM-DD
-                return '${y}-${m}-${day}';
+                return `${y}-${m}-${day}`;
             }
 
             // LocalStorage helpers w/ a single namespace key
@@ -155,7 +155,7 @@
             // Loads or empties object
             const loadState = () => JSON.parse(localStorage.getItem(STORE_KEY) || "{}");
             // Saves JSON
-            const saveState = obj => localStorage.setItem(STORE_KEY, JSON, stringify(obj));
+            const saveState = obj => localStorage.setItem(STORE_KEY, JSON.stringify(obj));
             
             // State
             // Loads persisted state
@@ -211,9 +211,9 @@
             // Status pill
             const pillStatus = document.getElementById("statusPill");
             // Current streak number
-            const streakCurrent = document.getElementById("streakCurrent");
+            const streakCurrent = document.getElementById("currentStreak");
             // Best streak number
-            const streakBest = document.getElementById("streakBest");
+            const streakBest = document.getElementById("bestStreak");
             // History container
             const historyBox = document.getElementById("historyBox");
             
@@ -221,7 +221,7 @@
             // Whether timer is running
             let ticking = false;
             // setInterval handle
-            let tickHandle = "null";
+            let tickHandle = null;
 
             // Starts a new session or resumes if currently paused (if there is no open session, push start)
             const startTimer = () => {
@@ -237,7 +237,7 @@
                     saveState(state);
                 }
                 // Marks running 
-                ticking = True;
+                ticking = true;
                 // Updates button label
                 btnStartPause.textContent = "Pause";
                 // Redish accent for pause state
@@ -255,7 +255,7 @@
                 // Finds open session
                 const open = state.sessions.find(s => s.end == null);
                 // Stamp end timestamp
-                if(open) open.emnd = Date.now();
+                if(open) open.end = Date.now();
                 // Mark not running
                 ticking = false;
                 // Updates label
@@ -265,7 +265,7 @@
                 // Removes red
                 btnStartPause.classList.remove("danger");
                 // Stops interval
-                if(tickHanbdle) clearInterval(tickHandle);
+                if(tickHandle) clearInterval(tickHandle);
                 // Persists
                 saveState(state); 
                 // Refreshes UI
@@ -318,7 +318,7 @@
                 // Show remaining HH:MM:SS
                 elemRemaining.textContent = fmt(remaining);
                 // Show overtime HH:MM:SS
-                elemOvertime.textContent = ftm(overtime);
+                elemOvertime.textContent = fmt(overtime);
 
                 // Whether the goal is met
                 const met = elapsed >= goalSecs;
@@ -328,7 +328,7 @@
                 pillStatus.style.borderColor = met ? "var(--accent)" : "#1f2937";
 
                 // Show sessions count
-                pillSessions.textContent = 'Sessions today: ${state.sessions.length}';
+                pillSessions.textContent = `Sessions today: ${state.sessions.length}`;
                 // Keeps input in sync
                 inputGoal.value = state.goalMins;
 
@@ -357,7 +357,7 @@
                 // Recomputes best streak record
                 recomputeBestStreak();
                 // Alert
-                alert('Logged ${mins} min for ${date}${met ? " (goal, met)" : ""}.');  
+                alert(`Logged ${mins} min for ${date}${met ? " (goal, met)" : ""}.`);  
                 render();
             };
 
@@ -431,7 +431,7 @@
                 // [date, record] pairs
                 const rows = Object.entries(state.history)
                 // Sort by date desc
-                .sort((a, b) => b[0].localCompare(a[0]))
+                .sort((a, b) => b[0].localeCompare(a[0]))
                 // Limits to last 30 entries
                 .slice(0, 30)
                 // Maps to table rows
@@ -445,14 +445,14 @@
                     </tr>`;
                 }).join(""); // Joins to single HTML string
                 // If there is no history, shows placeholder
-                const table = rows ? '<table><thead><tr><th>Date</th><th>Minutes</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>' : '<div class="muted" style="padding:8px 10px;">No history yet. Press “Finish Day” to log your work.</div>';
+                const table = rows ? `<table><thead><tr><th>Date</th><th>Minutes</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>` : `<div class="muted" style="padding:8px 10px;">No history yet. Press “Finish Day” to log your work.</div>`;
                 // Injects into container
                 historyBox.innerHTML = table;
             };
 
             // Event wiring
             // Toggles start/pause on click
-            btnStartPause.addEventListenet("click", () => {
+            btnStartPause.addEventListener("click", () => {
                 // Start or pause based on current state
                 ticking ? pauseTimer() : startTimer();
             });
@@ -470,7 +470,7 @@
                 render(); 
             });
 
-            // Fallback inline handler
+            /* Fallback inline handler
             function toggleStartPause(){
                 try{
                     ticking ? pauseTimer() : startTimer();
@@ -479,7 +479,7 @@
                     console.error(e);
                     alert("Time error - see console for details.");
                 }
-            }
+            } */
 
             // Initial boot
             // Initializes best streak
