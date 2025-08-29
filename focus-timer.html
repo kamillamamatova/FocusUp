@@ -449,6 +449,26 @@
                 // Injects into container
                 historyBox.innerHTML = table;
             };
+
+            // Event wiring
+            // Toggles start/pause on click
+            btnStartPause.addEventListenet("click", () => {
+                // Start or pause based on current state
+                ticking ? pauseTimer() : startTimer();
+            });
+            // Wires reset button
+            btnReset.addEventListener("click", resetToday);
+            // Wire finish-day button
+            btnFinishDay.addEventListener("click", finishDay);
+            // Persists goal when changed
+            inputGoal.addEventListener("change", () => {
+                // Parses value
+                const v = Number(inputGoal.value || 0);
+                // Clamps to >= 1 minute
+                state.goalMins = Math.max(1, Math.floor(v));
+                saveState(state);
+                render(); 
+            });
           </script>
     </body>
 </html>
