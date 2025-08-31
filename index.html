@@ -152,10 +152,41 @@
             // LocalStorage helpers w/ a single namespace key
             // Storage bucket key
             const STORE_KEY = "focusTimer.v1";
+
             // Loads or empties object
             const loadState = () => JSON.parse(localStorage.getItem(STORE_KEY) || "{}");
+
             // Saves JSON
-            const saveState = obj => localStorage.setItem(STORE_KEY, JSON.stringify(obj));
+            let __savePending = false;
+            const __commitSave = () => localStorage.setItem(STORE_KEY, JSON.stringify(state));
+            
+            const __scheduleSave = () => {
+                if(__savePending) return;
+                __savePending = true;
+                setTimeout(() => {
+                    __commitSave();
+                    __savePending = false;
+                }, 250);
+            }
+
+            // Keeping the same name to not change the code
+            const saveState = () => __scheduleSave();
+
+            // Saves when tab is going away/hidden
+            window.addEventListener("beforeunload", __commitSave);
+            document.addEventListener("visibilitychange", () => {
+                if(document.hidden) __commitSave();
+            });
+
+            // Safety save every 30 secs
+            setInterval(__commitSave, 30000);
+
+            // Multi tab coherence, if another tab updates state, pull it in
+            window.addEventListener("storage", (e) => {
+                if(e.key === STORE_KEY && e.newValues){
+                    try{ state = JSON.parse(e.newValue); render();} catch{}
+                }
+            });
             
             // State
             // Loads persisted state
