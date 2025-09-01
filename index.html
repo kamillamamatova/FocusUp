@@ -534,6 +534,34 @@
                 render(); 
             });
 
+            // Settings: load/save
+            const SETTINGS_KEY = "focusTimerSettings.v1";
+
+            function loadSettings(){
+                try{
+                    return JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}");
+                }
+                catch{
+                    return {};
+                }
+            }
+
+            function saveSettings(s){
+                localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+            }
+
+            // Reads from inputs, then saves
+            function saveNotionSettingsUI(){
+                const mode = document.getElementById("syncMode").value;
+                const input = document.getElementById("notionTokenInput").value.time();
+                const dbId = document.getElementById("notionDBInput").value.trim();
+                const apiUrl = document.getElementById("serverUrlInput").value.trim();
+
+                const s = { mode, notionToken, dbId, apiUrl };
+                saveSettings(s);
+                document.getElementById("settingsStatus").textContent = "Status: saved";
+            }
+
             /* Fallback inline handler
             function toggleStartPause(){
                 try{
