@@ -584,6 +584,17 @@
                 return "local-only";
             }
 
+            // Wires the save button
+            document.addEventListener("DOMContentLoaded", () => {
+                const btn = document.getElementById("saveSettingsBtn");
+                if(btn) btn.addEventListener("click", saveNotionSettingsUI);
+                hydrateSettingsUI();
+                // Shows a quick status on the pill
+                const status = settingsHealth();
+                const pill = document.getElementById("settingsStatus");
+                if(pill) pill.textContent = `Status: ${st}`;
+            });
+
             /* Fallback inline handler
             function toggleStartPause(){
                 try{
