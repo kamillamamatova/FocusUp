@@ -572,6 +572,18 @@
                 document.getElementById("settingsStatus").textContent = "Status: loaded";
             }
 
+            // Minimal validity check
+            function settingsHealth(){
+                const s = loadSettings();
+                if(s.mode === "notion_local"){
+                    return(!!s.token && !!s.dbId) ? "connected" : "incomplete";
+                }
+                if(s.mode === "server"){
+                    return(!!s.apiUrl) ? "connected" : "incomplete";
+                }
+                return "local-only";
+            }
+
             /* Fallback inline handler
             function toggleStartPause(){
                 try{
