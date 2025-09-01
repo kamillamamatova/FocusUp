@@ -112,6 +112,39 @@
                           </div>
                      </div>
              </div>
+            
+             <!-- Tiny setting panel -->
+              <detais class = "block" style = "margin-top: 12px;">
+                <summary class = "label" style = "cursor: pointer;">Settings</summary>
+                <div style = "display: flex; gap: 12px; flex-wrap:wrap; margin-top: 10px;">
+                    <label class = "pill" style = "display: flex; gap: 8px; align-items: center;">
+                        Mode
+                        <select id = "syncMode">
+                            <option value = "none">Local only</option>
+                            <option value = "notion_local">Notion (token in this browser)</option>
+                            <option value = "server">Server API (no token in browser)</option>
+                        </select>
+                    </label>
+
+                    <label class = "pill" style = "display: flex; gap: 8px; align-items: center;">
+                        Notion Token
+                        <input id = "notionTokenInput" type = "password" placeholder = "secret_xxx" style = "width: 240px;">
+                    </label>
+
+                    <lable class = "pill" style = "display: flex; gap: 8px; align-items: center;">
+                        Notion DataBase ID
+                        <input id = "notionDBInput" type = "text" placeholder = "xxxxxxxxxxxxxxxx" style = "width: 240px;">
+                    </lable>"
+
+                    <lable class = "pill" style = "display: flex; gap: 8px; align-items: center;">
+                        Server API URL
+                        <input id = "serverUrlInput" type = "text" placeholder = "https://your-app.vercel.app/api/saveLog" style = "width: 240px;">
+                    </lable>
+
+                    <button id = "saveSettingsBtn" class = "info">Save Settings</button>
+                    <span id = "settingsStatus" class = "pill">Status: not saved</span>
+                </div>
+              </detais>
          </div>
 
          <!-- App logic in vanilla JS -->
