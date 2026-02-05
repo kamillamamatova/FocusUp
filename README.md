@@ -21,7 +21,7 @@ Designed for students, developers, and makers who want accountability inside **N
     ''' bash
     git clone https://github.com/yourusername/focusup.git
     cd focusup
-2. Open focus-timer.html in your browser.
+2. Open index.html in your browser.
 3. (Optional) Deploy to GitHub Pages, Netlify, or Vercel to get a shareable URL.
 
 ---
