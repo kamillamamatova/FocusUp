@@ -114,41 +114,22 @@
              </div>
             
              <!-- Tiny setting panel -->
-              <detais class = "block" style = "margin-top: 12px;">
-                <summary class = "label" style = "cursor: pointer;">Settings</summary>
-                <div style = "display: flex; gap: 12px; flex-wrap:wrap; margin-top: 10px;">
-                    <label class = "pill" style = "display: flex; gap: 8px; align-items: center;">
-                        Mode
-                        <select id = "syncMode">
-                            <option value = "none">Local only</option>
-                            <option value = "notion_local">Notion (token in this browser)</option>
-                            <option value = "server">Server API (no token in browser)</option>
-                        </select>
-                    </label>
-
-                    <label class = "pill" style = "display: flex; gap: 8px; align-items: center;">
-                        Notion Token
-                        <input id = "notionTokenInput" type = "password" placeholder = "secret_xxx" style = "width: 240px;">
-                    </label>
-
-                    <lable class = "pill" style = "display: flex; gap: 8px; align-items: center;">
-                        Notion DataBase ID
-                        <input id = "notionDBInput" type = "text" placeholder = "xxxxxxxxxxxxxxxx" style = "width: 240px;">
-                    </lable>"
-
-                    <lable class = "pill" style = "display: flex; gap: 8px; align-items: center;">
-                        Server API URL
-                        <input id = "serverUrlInput" type = "text" placeholder = "https://your-app.vercel.app/api/saveLog" style = "width: 240px;">
-                    </lable>
-
-                    <button id = "saveSettingsBtn" class = "info">Save Settings</button>
-                    <span id = "settingsStatus" class = "pill">Status: not saved</span>
+              <details class="block" style="margin-top:12px;">
+                <summary class="label" style="cursor:pointer;">Data (Export / Import)</summary>
+                <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:10px; align-items:center;">
+                    <button id="exportBtn" class="info">Export</button>
+                    <button id="importBtn" class="danger">Import</button>
+                    <span id="dataStatus" class="pill">Status: ready</span>
                 </div>
-              </detais>
-         </div>
+                <div style="margin-top:10px;">
+                    <textarea id="dataBox" rows="6" style="width:100%;" placeholder="Export will appear here. Paste export JSON here to import."></textarea>
+                    <div class="footer">Pro tip: This exports/imports the localStorage key <span class="pill">focusTimer.v1</span>.</div>
+                </div>
+            </details>
+        </div>
 
          <!-- App logic in vanilla JS -->
-          <script>
+        <script>
             // Utilities
             // Formats seconds to HH:MM:SS string
             const fmt = s => {
@@ -182,33 +163,29 @@
                 return `${y}-${m}-${day}`;
             }
 
+            // Parses a date key into a UTC day index so streaks logic is consistent everywhere
+            const dayIndex = (key) => {
+                const [y, m, d] = key.split("-").map(Number);
+                return Math.floor(Date.UTC(y, m - 1, d) / 86400000);
+            };
+
             // LocalStorage helpers w/ a single namespace key
             // Storage bucket key
             const STORE_KEY = "focusTimer.v1";
 
             // Loads or empties object
-            const loadState = () => JSON.parse(localStorage.getItem(STORE_KEY) || "{}");
+            const loadState = () => {
+                try { return JSON.parse(localStorage.getItem(STORE_KEY) || "{}"); }
+                catch { return {}; }
+            };
 
-            // Saves JSON
-            let __savePending = false;
-            const __commitSave = () => localStorage.setItem(STORE_KEY, JSON.stringify(state));
-            
-            const __scheduleSave = () => {
-                if(__savePending) return;
-                __savePending = true;
-                setTimeout(() => {
-                    __commitSave();
-                    __savePending = false;
-                }, 250);
-            }
-
-            // Keeping the same name to not change the code
-            const saveState = () => __scheduleSave();
+            // Simple "save current state"
+            const saveState = () => localStorage.setItem(STORE_KEY, JSON.stringify(state));
 
             // Saves when tab is going away/hidden
-            window.addEventListener("beforeunload", __commitSave);
+            window.addEventListener("beforeunload", () => saveState());
             document.addEventListener("visibilitychange", () => {
-                if(document.hidden) __commitSave();
+                if (document.hidden) saveState();
             });
 
             // Safety save every 30 secs
@@ -216,8 +193,11 @@
 
             // Multi tab coherence, if another tab updates state, pull it in
             window.addEventListener("storage", (e) => {
-                if(e.key === STORE_KEY && e.newValues){
-                    try{ state = JSON.parse(e.newValue); render();} catch{}
+                if (e.key === STORE_KEY && e.newValue) {
+                    try {
+                        state = JSON.parse(e.newValue);
+                        render();
+                    } catch {}
                 }
             });
             
@@ -235,7 +215,7 @@
             // Last open date to auto rollover 
             state.lastOpened ??= todayKey();
             // Persists any defaults
-            saveState(state);
+            saveState();
 
             // Dailly rollover
             // If a new day has started since last opened, clear sessions (but keep history)
@@ -249,7 +229,7 @@
                     // Updates last opened day
                     state.lastOpened = t;
                     // Persists
-                    saveState(state);
+                    saveState();
                 }
             };
             // Runs at load
@@ -291,6 +271,10 @@
             const startTimer = () => {
                 // Ensures it's on today's session
                 ensureToday();
+
+                // If already running
+                if(ticking) return;
+
                 // Looks for open (no end) session
                 const open = state.sessions.find(s => s.end == null);
                 // If none are open
@@ -308,8 +292,12 @@
                 btnStartPause.classList.add("danger");
                 // Removes green accent
                 btnStartPause.classList.remove("primary");
+
+                // Ensures only one interval exists
+                if (tickHandle) clearInterval(tickHandle);
                 // Updates UI every second
                 tickHandle = setInterval(render, 1000);
+
                 // Immediate render
                 render();
             };
@@ -390,14 +378,62 @@
                 pillStatus.textContent = met ? "Status: Goal met" : "Status: working...";
                 // Visual cue
                 pillStatus.style.borderColor = met ? "var(--accent)" : "#1f2937";
-
                 // Show sessions count
                 pillSessions.textContent = `Sessions today: ${state.sessions.length}`;
+
                 // Keeps input in sync
-                inputGoal.value = state.goalMins;
+                inputGoal.value = String(state.goalMins);
 
                 // Updates history & streaks panel
                 renderHistoryAndStreaks();
+            };
+
+            // Sync via Notion (token stored in this browser)
+            async function syncFinishToNotion({ date, minutes, goal, met }){
+                // Loads settings object from localStorage (mode, token, dbId, etc.)
+                const s = loadSettings();
+
+                // Only runs if the user chose "notion_local" mode and has both a token + dbId
+                if(s.mode !== "notion_local" || !s.token || !s.dbId) return;
+
+                try{
+                    // Calls Notion API to create a new row (page) in the database
+                    const res = await fetch("https://api.notion.com/v1/pages", {
+                        method: "POST",
+                        headers: {
+                            // Uses the saved Notion integration token
+                            "Authorization": `Bearer ${s.token}`,
+                            // Notion requires an API version
+                            "Notion-Version": "2022-06-28",
+                            // Tells Notion that JSON is being sent
+                            "Content-Type": "application/json"
+                        },
+                        // JSON body is the new page in the target database with properties
+                        body: JSON.stringify({
+                            // Which database to insert into
+                            parent: { database_id: s.dbId },
+                            properties: {
+                                // Each key here must match the column names in the Notion database
+                                // e.g., 2025-09-03
+                                "Date": {date: {start: date}},
+                                // Total study minutes
+                                "Minutes": {number: minutes},
+                                // Goal minutes
+                                "Goal": {number: goal},
+                                // True/false
+                                "Met": {checkbox: met}
+                            }
+                        }),
+                        // Allows request to continue even if the tab closes
+                        keepalive: true
+                    });
+
+                    // If Notion responded with an error status, logs a warning with details
+                    if(!res.ok) console.warn("Notion sync failed:", await res.text());
+                }
+                catch(e){
+                    console.warn("Notion sync error:", e);
+                }
             };
 
             // History and Streaks
@@ -431,17 +467,23 @@
                 let count = 0;
                 // Starts at today
                 let d = new Date(todayKey());
+
                 // Walks backwards day by day while met == true
                 while(true){
+                    const d = new Date(idx * 86400000);
+                    const y = d.getUTCFullYear();
+                    const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+                    const day = String(d.getUTCDate()).padStart(2, "0");
                     // YYYY-MM-DD
                     const key = d.toISOString().slice(0, 10);
+
                     // History record for that day
                     const rec = state.history[key];
                     // If exists and met
                     if(rec && rec.met){
                         count++;
                         // Moves back one day
-                        d.setDate(d.getDate() - 1);
+                        idx -= 1;
                     }
                     // Breaks when not met
                     else{
