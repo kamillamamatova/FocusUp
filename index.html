@@ -189,7 +189,7 @@
             });
 
             // Safety save every 30 secs
-            setInterval(__commitSave, 30000);
+            setInterval(() => saveState(), 30000);
 
             // Multi tab coherence, if another tab updates state, pull it in
             window.addEventListener("storage", (e) => {
