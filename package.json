@@ -1,0 +1,12 @@
+{
+  "name": "focusup",
+  "version": "0.1.0",
+  "description": "FocusUp — focus timer with Notion sync",
+  "private": true,
+  "scripts": {
+    "backend":     "cd backend && npm start",
+    "backend:dev": "cd backend && npm run dev",
+    "install:all": "cd backend && npm install"
+  },
+  "license": "MIT"
+}

@@ -120,6 +120,73 @@ Your database must have these property names with exact spelling and types:
 
 ---
 
+## Architecture (in progress)
+
+FocusUp is evolving from a fully client-side app to a proper backend-assisted product so that users never have to paste API tokens manually.
+
+### Planned architecture
+
+```
+FocusUp/
+├── index.html          ← static frontend (embeddable in Notion, no build step)
+├── backend/            ← Node.js + Express API server
+│   ├── src/
+│   │   ├── index.js            entry point, middleware wiring
+│   │   └── routes/
+│   │       ├── auth.js         Notion OAuth flow
+│   │       └── sync.js         write finished-day entries to Notion
+│   ├── .env.example    environment variable template
+│   └── package.json
+└── package.json        root convenience scripts
+```
+
+### User flow (target)
+
+1. User opens the app and clicks **Connect Notion**.
+2. Backend redirects to Notion's OAuth consent screen.
+3. User authorises — Notion redirects back to `/api/auth/notion/callback`.
+4. Backend exchanges the auth code for an access token and stores it in a server-side session.
+5. When the user clicks **Finish Day**, the frontend calls `POST /api/sync`; the backend writes the row to Notion using the session token.
+
+### Stack choices and tradeoffs
+
+| Concern | Choice | Why |
+|---|---|---|
+| Backend runtime | Node.js | Same language as the frontend, vast ecosystem, easy to deploy |
+| Framework | Express | Minimal, well-understood, no magic |
+| Session store | `express-session` + MemoryStore (dev) | Simple to start; swap for Redis in production |
+| Auth | Notion OAuth (server-side) | Tokens never touch the browser; Notion requires this for public integrations |
+| Frontend | Static HTML (no build) | Stays embeddable in Notion iframes; no bundler complexity |
+| Deployment | Any Node host (Railway, Render, Fly.io) | One-command deploy, free tiers available |
+
+### Getting started (backend)
+
+```bash
+cd FocusUp
+npm run install:all           # installs backend dependencies
+
+cp backend/.env.example backend/.env
+# fill in NOTION_CLIENT_ID, NOTION_CLIENT_SECRET, SESSION_SECRET
+
+npm run backend:dev           # starts backend on http://localhost:3001
+```
+
+Health check: `curl http://localhost:3001/api/health`
+
+### Environment variables
+
+See `backend/.env.example` for the full list. Required at runtime:
+
+| Variable | Description |
+|---|---|
+| `SESSION_SECRET` | Random secret for signing session cookies |
+| `NOTION_CLIENT_ID` | From your Notion integration settings |
+| `NOTION_CLIENT_SECRET` | From your Notion integration settings |
+| `NOTION_REDIRECT_URI` | Must match exactly what's registered in Notion |
+| `FRONTEND_URL` | Allowed CORS origin (your hosted frontend URL) |
+
+---
+
 ## License
 
 Created and maintained by **Kamilla Mamatova**.
