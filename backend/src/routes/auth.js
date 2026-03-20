@@ -2,77 +2,152 @@
 /**
  * Notion OAuth routes
  *
- * Flow (to be completed in the next pass):
- *   1. GET  /api/auth/notion            — redirect user to Notion's consent screen
- *   2. GET  /api/auth/notion/callback   — exchange code → access token, store in session
- *   3. GET  /api/auth/status            — returns whether the session has a valid token
- *   4. POST /api/auth/logout            — clears the session token
+ *   GET  /api/auth/notion            — redirect user to Notion's consent screen
+ *   GET  /api/auth/notion/callback   — exchange code → access token, persist in DB
+ *   GET  /api/auth/status            — is this session connected?
+ *   POST /api/auth/logout            — disconnect (delete token, destroy session)
  *
  * References:
  *   https://developers.notion.com/docs/authorization
  */
 
+const { randomBytes } = require('crypto');
 const router = require('express').Router();
+const { saveToken, getToken, deleteToken } = require('../db');
 
 const NOTION_OAUTH_BASE = 'https://api.notion.com/v1/oauth/authorize';
+const NOTION_TOKEN_URL  = 'https://api.notion.com/v1/oauth/token';
 
 // ── 1. Initiate OAuth ─────────────────────────────────────
-// Redirect the user to Notion's consent screen.
-// A random `state` value is stored in the session to prevent CSRF.
 router.get('/notion', (req, res) => {
-    const state = require('crypto').randomBytes(16).toString('hex');
+    // Generate and store CSRF state in the session before redirecting.
+    const state = randomBytes(16).toString('hex');
     req.session.oauthState = state;
 
-    const params = new URLSearchParams({
-        client_id:     process.env.NOTION_CLIENT_ID,
-        redirect_uri:  process.env.NOTION_REDIRECT_URI,
-        response_type: 'code',
-        owner:         'user',
-        state,
-    });
+    // saveUninitialized is false, so we must save explicitly here to ensure
+    // the cookie is set before the browser follows the redirect.
+    req.session.save(err => {
+        if (err) {
+            console.error('Session save error before OAuth redirect:', err);
+            return res.status(500).json({ error: 'Could not initiate OAuth — session error' });
+        }
 
-    res.redirect(`${NOTION_OAUTH_BASE}?${params}`);
+        const params = new URLSearchParams({
+            client_id:     process.env.NOTION_CLIENT_ID,
+            redirect_uri:  process.env.NOTION_REDIRECT_URI,
+            response_type: 'code',
+            owner:         'user',
+            state,
+        });
+
+        res.redirect(`${NOTION_OAUTH_BASE}?${params}`);
+    });
 });
 
 // ── 2. OAuth callback ─────────────────────────────────────
-// Notion redirects here after the user authorises (or denies).
-// TODO (next pass): exchange `code` for an access token via POST /v1/oauth/token
-router.get('/notion/callback', (req, res) => {
+router.get('/notion/callback', async (req, res) => {
     const { code, state, error } = req.query;
+    const frontendBase = process.env.FRONTEND_URL || '/';
 
-    // Deny or missing code
-    if (error || !code) {
-        return res.redirect(
-            `${process.env.FRONTEND_URL || '/'}?notion_error=${encodeURIComponent(error || 'access_denied')}`
-        );
+    // Notion returned an error (e.g. user clicked "Cancel").
+    if (error) {
+        console.warn('Notion OAuth denied:', error);
+        return res.redirect(`${frontendBase}?notion_error=${encodeURIComponent(error)}`);
     }
 
-    // CSRF check
+    // Missing code — shouldn't happen in normal flow.
+    if (!code) {
+        return res.redirect(`${frontendBase}?notion_error=missing_code`);
+    }
+
+    // CSRF check: state in query must match what we stored in the session.
     if (!req.session.oauthState || req.session.oauthState !== state) {
-        return res.status(400).json({ error: 'Invalid OAuth state — possible CSRF' });
+        console.warn('OAuth state mismatch — possible CSRF or expired session');
+        return res.status(400).json({ error: 'Invalid OAuth state — try connecting again' });
     }
     delete req.session.oauthState;
 
-    // TODO (next pass): exchange `code` for access token
-    // const token = await exchangeCodeForToken(code);
-    // req.session.notionToken = token;
+    // Exchange the authorisation code for an access token.
+    let tokenData;
+    try {
+        // Notion requires HTTP Basic auth using client_id:client_secret.
+        const credentials = Buffer
+            .from(`${process.env.NOTION_CLIENT_ID}:${process.env.NOTION_CLIENT_SECRET}`)
+            .toString('base64');
 
-    // Placeholder redirect — will carry a success flag once exchange is wired
-    res.redirect(`${process.env.FRONTEND_URL || '/'}?notion_connected=pending&code=${code}`);
+        const tokenRes = await fetch(NOTION_TOKEN_URL, {
+            method:  'POST',
+            headers: {
+                'Authorization': `Basic ${credentials}`,
+                'Content-Type':  'application/json',
+                'Notion-Version': '2022-06-28',
+            },
+            body: JSON.stringify({
+                grant_type:   'authorization_code',
+                code,
+                redirect_uri: process.env.NOTION_REDIRECT_URI,
+            }),
+        });
+
+        tokenData = await tokenRes.json();
+
+        if (!tokenRes.ok) {
+            // Notion returns structured errors like { object: 'error', code: '...', message: '...' }
+            console.error('Notion token exchange failed:', tokenData);
+            const notionCode = tokenData.code || 'token_exchange_failed';
+            return res.redirect(`${frontendBase}?notion_error=${encodeURIComponent(notionCode)}`);
+        }
+    } catch (err) {
+        console.error('Token exchange network error:', err);
+        return res.redirect(`${frontendBase}?notion_error=network_error`);
+    }
+
+    // Persist token in SQLite, keyed by express-session ID.
+    // The browser only ever holds a session cookie — the token stays server-side.
+    try {
+        saveToken(req.session.id, tokenData);
+    } catch (err) {
+        console.error('Failed to persist token:', err);
+        return res.redirect(`${frontendBase}?notion_error=storage_error`);
+    }
+
+    // Mark session as connected (cheap flag — avoids a DB lookup on /status).
+    req.session.connected = true;
+    req.session.save(err => {
+        if (err) console.error('Session save error after token exchange:', err);
+        res.redirect(`${frontendBase}?notion_connected=true`);
+    });
 });
 
 // ── 3. Auth status ────────────────────────────────────────
-// Frontend polls this to know whether the user is connected.
+// Called by the frontend on load to know whether to show "Connect" or workspace info.
 router.get('/status', (req, res) => {
-    const connected = !!(req.session && req.session.notionToken);
-    res.json({ connected });
+    if (!req.session?.connected) {
+        return res.json({ connected: false });
+    }
+
+    // Confirm the token actually exists in DB (guards against orphaned sessions).
+    const row = getToken(req.session.id);
+    if (!row) {
+        req.session.connected = false;
+        return res.json({ connected: false });
+    }
+
+    res.json({
+        connected:      true,
+        workspace_name: row.workspace_name || null,
+        workspace_icon: row.workspace_icon || null,
+    });
 });
 
-// ── 4. Logout / disconnect ────────────────────────────────
+// ── 4. Disconnect ─────────────────────────────────────────
 router.post('/logout', (req, res) => {
-    if (req.session) {
-        delete req.session.notionToken;
+    if (req.session?.id) {
+        deleteToken(req.session.id);
     }
+    req.session?.destroy(err => {
+        if (err) console.error('Session destroy error on logout:', err);
+    });
     res.json({ ok: true });
 });
 
