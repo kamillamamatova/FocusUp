@@ -315,8 +315,8 @@
   </div><!-- /card -->
 
   <div class="footer">
-    <p>To embed in Notion: host this page on a public HTTPS URL and use /embed</p>
-    <p>Data is stored in this browser&rsquo;s localStorage &mdash; not in Notion</p>
+    <p>To add FocusUp to a Notion page: host it at a public URL, then use /embed</p>
+    <p>Your timer data is saved in this browser &mdash; switching browsers or devices starts fresh</p>
   </div>
 
 </div><!-- /container -->
@@ -440,15 +440,15 @@ document.getElementById('darkModeBtn').addEventListener('click', () => {
 
 // ── Notion OAuth UI ────────────────────────────────────────
 const NOTION_ERROR_LABELS = {
-    access_denied:         'You cancelled the Notion authorisation.',
-    missing_code:          'Authorisation failed — no code was returned. Please try again.',
-    state_mismatch:        'Authorisation could not be verified — your session may have expired. Please try again.',
-    token_exchange_failed: 'Could not complete sign-in with Notion. Please try again.',
-    network_error:         'A network error occurred during authorisation. Check your connection.',
-    storage_error:         'Sign-in succeeded but the token could not be saved. Please try again.',
+    access_denied:         "You didn't approve the connection. You can try again whenever you're ready.",
+    missing_code:          'Something went wrong during sign-in. Please try again.',
+    state_mismatch:        'The sign-in attempt could not be completed — it may have timed out. Please try again.',
+    token_exchange_failed: 'Notion could not complete the sign-in. Please try again.',
+    network_error:         'Could not reach Notion. Check your internet connection and try again.',
+    storage_error:         'Sign-in succeeded, but something went wrong saving it. Please try again.',
 };
 const friendlyNotionError = code =>
-    NOTION_ERROR_LABELS[code] || `Authorisation failed (${code}). Please try again.`;
+    NOTION_ERROR_LABELS[code] || 'Sign-in failed. Please try again.';
 
 async function checkNotionStatus() {
     try {
@@ -481,8 +481,8 @@ function renderNotionSync() {
 
     if (notionStatus === 'unavailable') {
         panel.innerHTML = `
-            <p class="notion-desc">Notion sync requires the backend server to be running. The timer works fully without it.</p>
-            <p class="notion-desc-small">Start the backend: <code>npm run backend:dev</code></p>`;
+            <p class="notion-desc">Notion sync is not available right now. Your timer and history are still saved as normal.</p>
+            <p class="notion-desc-small">If you set up the sync service, make sure it is running and try refreshing.</p>`;
         return;
     }
 
@@ -497,7 +497,7 @@ function renderNotionSync() {
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
                 ${wsLabel}
               </span>
-              <button type="button" class="btn btn-secondary" id="disconnectNotionBtn" style="padding:7px 16px;font-size:13px;">Disconnect</button>
+              <button type="button" class="btn btn-secondary" id="disconnectNotionBtn" style="padding:7px 16px;font-size:13px;">Disconnect Notion</button>
             </div>
             ${dbSection}`;
         document.getElementById('disconnectNotionBtn').addEventListener('click', disconnectNotion);
@@ -511,7 +511,7 @@ function renderNotionSync() {
         : '';
     panel.innerHTML = `
         ${errorLine}
-        <p class="notion-desc">Connect your Notion workspace to automatically sync daily focus logs.</p>
+        <p class="notion-desc">Connect your Notion workspace to automatically save your daily focus log there when you finish each day.</p>
         <button type="button" class="btn btn-primary" id="connectNotionBtn" style="gap:8px;">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
           ${notionStatus === 'error' ? 'Try again' : 'Connect Notion'}
@@ -522,15 +522,13 @@ function renderNotionSync() {
 function renderDbPickerHTML() {
     const checkSVG = `<svg class="db-item-check" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>`;
     const schemaNote = `<p class="db-schema-note">
-        The selected database should have these properties:<br>
-        <strong>Date</strong> (date) &nbsp;&bull;&nbsp; <strong>Minutes</strong> (number) &nbsp;&bull;&nbsp;
-        <strong>Goal</strong> (number) &nbsp;&bull;&nbsp; <strong>Met</strong> (checkbox)
+        Your database needs columns named <strong>Date</strong>, <strong>Minutes</strong>, <strong>Goal</strong>, and <strong>Met</strong>. FocusUp fills these in automatically each day.
     </p>`;
 
     // Already have a selected DB
     if (notionSelectedDb) {
         return `<div class="db-picker-section">
-            <div class="db-picker-title">Sync target</div>
+            <div class="db-picker-title">Saving logs to</div>
             <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px;">
               <span class="db-selected-badge">
                 <span class="db-icon">&#128218;</span>
@@ -545,7 +543,7 @@ function renderDbPickerHTML() {
     // Loading
     if (notionDbLoading) {
         return `<div class="db-picker-section">
-            <div class="db-picker-title">Choose a database</div>
+            <div class="db-picker-title">Pick a Notion database</div>
             <p class="notion-desc" style="margin-top:8px;">Loading your databases&hellip;</p>
         </div>`;
     }
@@ -553,7 +551,7 @@ function renderDbPickerHTML() {
     // Error loading databases
     if (notionDbError) {
         return `<div class="db-picker-section">
-            <div class="db-picker-title">Choose a database</div>
+            <div class="db-picker-title">Pick a Notion database</div>
             <p class="notion-error-text" style="margin-top:8px;">${escapeHtml(notionDbError)}</p>
             <button type="button" class="btn btn-secondary" id="loadDbsBtn" style="padding:7px 16px;font-size:13px;">Try again</button>
         </div>`;
@@ -563,9 +561,9 @@ function renderDbPickerHTML() {
     if (notionDbList !== null) {
         if (notionDbList.length === 0) {
             return `<div class="db-picker-section">
-                <div class="db-picker-title">Choose a database</div>
-                <p class="notion-desc" style="margin-top:8px;">No databases found. Make sure you granted FocusUp access to at least one database during authorisation.</p>
-                <button type="button" class="btn btn-secondary" id="reconnectBtn" style="padding:7px 16px;font-size:13px;margin-right:8px;">Re-authorise</button>
+                <div class="db-picker-title">Pick a Notion database</div>
+                <p class="notion-desc" style="margin-top:8px;">No databases were found in your workspace. During sign-in, Notion asks which pages to share with FocusUp — make sure to include at least one database.</p>
+                <button type="button" class="btn btn-secondary" id="reconnectBtn" style="padding:7px 16px;font-size:13px;margin-right:8px;">Sign in again</button>
                 <button type="button" class="btn btn-secondary" id="loadDbsBtn" style="padding:7px 16px;font-size:13px;">Refresh</button>
                 ${schemaNote}
             </div>`;
@@ -576,8 +574,8 @@ function renderDbPickerHTML() {
               <span class="db-item-name">${escapeHtml(db.name)}</span>
             </button>`).join('');
         return `<div class="db-picker-section">
-            <div class="db-picker-title">Choose a database</div>
-            <p class="db-picker-hint">Select the Notion database where FocusUp should write your daily logs.</p>
+            <div class="db-picker-title">Pick a Notion database</div>
+            <p class="db-picker-hint">Choose where FocusUp should save your daily logs. You can change this any time.</p>
             <div class="db-list">${items}</div>
             ${schemaNote}
         </div>`;
@@ -585,11 +583,11 @@ function renderDbPickerHTML() {
 
     // Not yet loaded — show prompt
     return `<div class="db-picker-section">
-        <div class="db-picker-title">Choose a database</div>
-        <p class="notion-desc" style="margin-top:8px;">Pick the Notion database where your daily focus logs will be saved.</p>
+        <div class="db-picker-title">Pick a Notion database</div>
+        <p class="notion-desc" style="margin-top:8px;">Choose which Notion database your daily focus logs should be saved to.</p>
         <button type="button" class="btn btn-secondary" id="loadDbsBtn" style="padding:7px 16px;font-size:13px;gap:8px;">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></svg>
-          Load my databases
+          Show my Notion databases
         </button>
     </div>`;
 }
@@ -621,7 +619,7 @@ async function loadDatabases() {
             notionDbList = data.databases || [];
         }
     } catch {
-        notionDbError = 'Could not reach the backend — make sure it is running.';
+        notionDbError = 'Could not reach the sync service. Please try again.';
     }
     notionDbLoading = false;
     renderNotionSync();
@@ -648,7 +646,7 @@ async function selectDatabase(dbId, dbName) {
         }
     } catch {
         notionSelectedDb = null;
-        notionDbError    = 'Could not reach the backend — make sure it is running.';
+        notionDbError    = 'Could not save your choice. Please try again.';
         renderNotionSync();
     }
     render(); // update syncLabel
@@ -803,14 +801,14 @@ const finishDay = async () => {
         const data = await res.json();
 
         if (res.ok) {
-            syncEl.textContent = data.action === 'updated' ? 'Notion entry updated' : 'Synced to Notion';
+            syncEl.textContent = data.action === 'updated' ? 'Notion updated' : 'Saved to Notion';
             syncEl.className   = 'pill sync-ok';
         } else {
-            syncEl.textContent = data.error || 'Sync failed';
+            syncEl.textContent = data.error || 'Could not save to Notion';
             syncEl.className   = 'pill sync-fail';
         }
     } catch {
-        syncEl.textContent = 'Sync failed — backend unreachable';
+        syncEl.textContent = 'Could not reach Notion sync';
         syncEl.className   = 'pill sync-fail';
     }
 };
@@ -857,8 +855,8 @@ const render = () => {
 
     // Sync label
     document.getElementById('syncLabel').textContent =
-        notionStatus === 'connected' && notionSelectedDb ? `Syncing to: ${notionSelectedDb.name}` :
-        notionStatus === 'connected'                     ? 'Notion connected — pick a database' :
+        notionStatus === 'connected' && notionSelectedDb ? `Notion: ${notionSelectedDb.name}` :
+        notionStatus === 'connected'                     ? 'Notion connected' :
         notionStatus === 'checking'                      ? 'Checking\u2026' :
         'Local only';
 

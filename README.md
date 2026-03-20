@@ -1,189 +1,177 @@
 # FocusUp
 
-A lightweight, embeddable focus timer for the browser and Notion.
-Count up toward a daily goal, log sessions, and keep your streak alive.
+A focus timer you can use in the browser or embed directly in Notion.
+Count up toward a daily goal, finish your day with one click, and keep your streak going.
 
 ---
 
-## Features
+## Using FocusUp
 
-- **Count-up timer** toward a configurable daily goal (default 2 hours)
-- **Elapsed / Remaining / Overtime** displays update every second
-- **Finish Day** — logs your total minutes, updates streaks, clears sessions for tomorrow
-- **Daily streaks** — current and best consecutive days where you met your goal
-- **History** — last 30 days in a scrollable table
-- **Export / Import** — back up and restore all data as JSON
-- **Notion sync** (optional) — "Finish Day" can write a row to a Notion database via a client-side integration token (personal use only)
-- **No backend, no build step** — single static HTML file, all data in browser localStorage
+### What it does
 
----
+- **Timer** — counts up from zero toward your daily goal (default: 2 hours)
+- **Elapsed / Remaining / Overtime** — three live displays so you always know where you stand
+- **Finish Day** — records your total focus time, updates your streak, and resets for tomorrow
+- **Streaks** — tracks how many days in a row you've hit your goal
+- **History** — a scrollable table of your last 30 days
+- **Backup** — export your data as a file and import it on another device
 
-## Hosting (required to embed in Notion)
+### Controls
 
-Notion's `/embed` block only accepts **public HTTPS URLs**.
-A local `file://` path will not work as an embed.
-
-### GitHub Pages
-
-1. Push the repo to GitHub.
-2. Go to **Settings → Pages → Source** and select the branch and folder containing `index.html`.
-3. Your URL will be `https://<username>.github.io/<repo>/` (adjust path if `index.html` is in a subfolder).
-
-### Netlify
-
-1. Go to [netlify.com](https://netlify.com).
-2. Drag the folder containing `index.html` onto the Netlify deploy dropzone, or connect your GitHub repo.
-3. Netlify assigns a URL like `https://your-site.netlify.app`.
-
-### Vercel
-
-1. Install the CLI: `npm i -g vercel`
-2. Run `vercel` from the folder containing `index.html` and follow the prompts.
-3. Vercel assigns a URL like `https://your-project.vercel.app`.
-
-> **Framing note:** Notion embeds require the host to allow iframes.
-> GitHub Pages and Netlify allow framing by default.
-> If the embed shows a blank frame, your host may be sending an
-> `X-Frame-Options: DENY` or a restrictive `Content-Security-Policy: frame-ancestors` header.
-
----
-
-## Embedding in Notion
-
-1. Host the app at a public HTTPS URL (see above).
-2. In a Notion page, type `/embed` and press Enter.
-3. Paste your hosted URL into the embed dialog and click **Embed link**.
-4. Resize the embed block — 600 px height is a good starting point.
-
-> Data is stored in the **browser's localStorage inside the Notion client**, not in Notion itself.
-> Each browser or device has independent storage.
-
----
-
-## Local use (no hosting needed)
-
-```bash
-git clone https://github.com/yourusername/focusup.git
-cd focusup/FocusUp
-open index.html        # macOS
-# or double-click index.html in your file manager (Windows / Linux)
-```
-
-No install or build step required.
-
----
-
-## Usage
-
-| Control | What it does |
+| Button | What it does |
 |---|---|
-| **Start / Pause** | Begin or pause a focus session |
-| **Reset** | Clear today's sessions (history is preserved) |
-| **Finish Day** | Log today's total, update streaks, clear sessions for tomorrow |
-| **Goal (mins)** | Set your daily focus target |
-| **Export** | Copy all app data to the textarea as JSON |
-| **Import** | Paste exported JSON and restore it |
+| **Start** | Begin a focus session |
+| **Pause** | Pause — your time is saved |
+| **Continue** | Resume where you left off |
+| **Reset** | Clear today's sessions (history stays) |
+| **Finish Day** | Lock in today's total, update your streak, and start fresh tomorrow |
+| **Goal** | Change your daily target in minutes |
 
----
+### Your data
 
-## Data & Storage
+All your timer data is saved in **this browser** — nothing is sent anywhere unless you connect Notion.
 
-- All data lives in `localStorage` under the key `focusTimer.v1`.
-- Data is per-device and per-browser — switching browsers starts fresh.
-- Use **Data → Export** to copy your data as JSON, and **Import** to restore it on another device or after clearing localStorage.
+- Switching to a different browser or device starts from zero
+- Use **Data Export / Import** to back up your data or move it to another device
+- Paste your exported data into the import box on the new device and click Import
 
----
+### How Notion sync works
 
-## Notion Sync (optional)
+When you connect Notion, FocusUp saves a record to your Notion database every time you click **Finish Day**. Here's what happens:
 
-Finish Day can optionally write a row into a Notion database.
+1. You click **Finish Day** — your data is saved locally first, so nothing is ever lost
+2. FocusUp sends the day's summary to Notion in the background
+3. A new row appears in your chosen Notion database with the date, minutes focused, your goal, and whether you met it
+4. If you click Finish Day again for the same day (e.g. to correct a mistake), the existing row is updated rather than duplicated
 
-1. Open the **Notion Sync** panel at the bottom of the app.
-2. Set mode to **Notion (client-side, personal use)**.
-3. Paste your integration token (`secret_...`) from [notion.so/my-integrations](https://notion.so/my-integrations).
-4. Paste your database ID (32-character ID from the database URL).
-5. In Notion, share the database with your integration.
-6. Click **Save Settings**.
+Notion sync is completely optional. The timer works just as well without it.
 
-Your database must have these property names with exact spelling and types:
+### Connecting Notion
 
-| Property | Type |
+1. Open the **Notion Sync** section at the bottom of the app
+2. Click **Connect Notion** — you'll be taken to Notion to approve the connection
+3. During sign-in, Notion will ask which pages FocusUp can access — select at least one database
+4. After approving, you'll be returned to FocusUp
+5. Click **Show my Notion databases** and choose where your logs should go
+
+Your Notion database needs these four columns (exact names, any order):
+
+| Column name | Type |
 |---|---|
-| `Date` | date |
-| `Minutes` | number |
-| `Goal` | number |
-| `Met` | checkbox |
+| Date | Date |
+| Minutes | Number |
+| Goal | Number |
+| Met | Checkbox |
 
-> **Security:** your token is stored in plain text in this browser's localStorage.
-> Only configure this on a personal, private device.
-> Local data is always saved first — a failed sync never loses your data.
+FocusUp fills these in automatically — you never need to edit them by hand.
+
+### Embedding in Notion
+
+1. Host the app at a public HTTPS URL (see the developer section below for options)
+2. In a Notion page, type `/embed` and press Enter
+3. Paste your hosted URL and click **Embed link**
+4. Resize the block — 600 px tall is a good starting point
+
+> **Note:** Your timer data is stored in the browser the Notion app runs in, not in Notion itself. Each browser or device has its own independent data.
 
 ---
 
-## Architecture (in progress)
+## Developer setup
 
-FocusUp is evolving from a fully client-side app to a proper backend-assisted product so that users never have to paste API tokens manually.
-
-### Planned architecture
+### Project structure
 
 ```
 FocusUp/
-├── index.html          ← static frontend (embeddable in Notion, no build step)
-├── backend/            ← Node.js + Express API server
+├── index.html          frontend — static HTML, no build step required
+├── backend/            Node.js + Express API server
 │   ├── src/
-│   │   ├── index.js            entry point, middleware wiring
+│   │   ├── index.js            server entry point
+│   │   ├── db.js               SQLite persistence layer
+│   │   ├── middleware/
+│   │   │   └── auth.js         session auth guard
 │   │   └── routes/
 │   │       ├── auth.js         Notion OAuth flow
-│   │       └── sync.js         write finished-day entries to Notion
-│   ├── .env.example    environment variable template
+│   │       ├── databases.js    list + save target database
+│   │       └── sync.js         write daily logs to Notion
+│   ├── .env.example    required environment variables
 │   └── package.json
-└── package.json        root convenience scripts
+└── package.json        root-level convenience scripts
 ```
 
-### User flow (target)
+### Running locally
 
-1. User opens the app and clicks **Connect Notion**.
-2. Backend redirects to Notion's OAuth consent screen.
-3. User authorises — Notion redirects back to `/api/auth/notion/callback`.
-4. Backend exchanges the auth code for an access token and stores it in a server-side session.
-5. When the user clicks **Finish Day**, the frontend calls `POST /api/sync`; the backend writes the row to Notion using the session token.
-
-### Stack choices and tradeoffs
-
-| Concern | Choice | Why |
-|---|---|---|
-| Backend runtime | Node.js | Same language as the frontend, vast ecosystem, easy to deploy |
-| Framework | Express | Minimal, well-understood, no magic |
-| Session store | `express-session` + MemoryStore (dev) | Simple to start; swap for Redis in production |
-| Auth | Notion OAuth (server-side) | Tokens never touch the browser; Notion requires this for public integrations |
-| Frontend | Static HTML (no build) | Stays embeddable in Notion iframes; no bundler complexity |
-| Deployment | Any Node host (Railway, Render, Fly.io) | One-command deploy, free tiers available |
-
-### Getting started (backend)
+**Frontend only** (no Notion sync):
 
 ```bash
-cd FocusUp
-npm run install:all           # installs backend dependencies
+open index.html   # macOS
+# or double-click index.html in your file manager
+```
 
+**Frontend + backend** (with Notion sync):
+
+```bash
+# 1. Install backend dependencies
+npm run install:all
+
+# 2. Create your environment file
 cp backend/.env.example backend/.env
-# fill in NOTION_CLIENT_ID, NOTION_CLIENT_SECRET, SESSION_SECRET
 
-npm run backend:dev           # starts backend on http://localhost:3001
+# 3. Fill in your values (see Environment variables below)
+#    Open backend/.env and edit it
+
+# 4. Start the backend
+npm run backend:dev
+
+# 5. Open the frontend
+#    Use a local server (e.g. VS Code Live Server on port 5500)
+#    or: python3 -m http.server 5500
+open http://localhost:5500
 ```
 
 Health check: `curl http://localhost:3001/api/health`
 
+### Setting up Notion OAuth
+
+1. Go to [notion.so/profile/integrations](https://www.notion.so/profile/integrations)
+2. Click **New integration** → set the type to **Public**
+3. Set the **Authorization URL** to your frontend URL (e.g. `http://localhost:5500` for local dev)
+4. Set the **Redirect URI** to `http://localhost:3001/api/auth/notion/callback`
+5. Save — copy the **Client ID** and **Client Secret** into `backend/.env`
+
 ### Environment variables
 
-See `backend/.env.example` for the full list. Required at runtime:
+See `backend/.env.example` for the full reference. Required:
 
 | Variable | Description |
 |---|---|
-| `SESSION_SECRET` | Random secret for signing session cookies |
+| `SESSION_SECRET` | Random 32-byte hex string — generate with the command in `.env.example` |
 | `NOTION_CLIENT_ID` | From your Notion integration settings |
 | `NOTION_CLIENT_SECRET` | From your Notion integration settings |
 | `NOTION_REDIRECT_URI` | Must match exactly what's registered in Notion |
-| `FRONTEND_URL` | Allowed CORS origin (your hosted frontend URL) |
+| `FRONTEND_URL` | Origin your frontend is served from (used for CORS and OAuth redirects) |
+| `NODE_ENV` | Set to `production` on your hosting platform |
+
+### Hosting options
+
+| Platform | Frontend | Backend |
+|---|---|---|
+| GitHub Pages + Railway | `index.html` → GitHub Pages | `backend/` → Railway (Node) |
+| Netlify + Render | `index.html` → Netlify drop | `backend/` → Render web service |
+| Vercel | `index.html` → Vercel static | `backend/` → Vercel serverless or separate |
+
+When deploying:
+- Set `NODE_ENV=production` on the backend platform
+- Set all five required env vars in the platform's environment settings
+- Update `NOTION_REDIRECT_URI` and `FRONTEND_URL` to your production URLs
+- Update the Redirect URI in your Notion integration settings to match
+
+### Embedding in Notion — important note
+
+When FocusUp is embedded in a Notion page as an iframe, browsers apply cross-site cookie rules. This means the session cookie used for Notion sync may not be sent from inside the iframe on some browsers.
+
+The **Connect Notion** flow opens a new browser tab (not an iframe) so it works correctly. But status checks and sync calls made from inside the embed may be blocked depending on the browser.
+
+If sync stops working after embedding, open FocusUp directly in its own tab — everything will work there. See `backend/.env.example` for a full explanation and mitigation options.
 
 ---
 
