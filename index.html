@@ -77,17 +77,17 @@
                    <!-- Control row -->
                     <div class = "controls">
                         <!-- Start/pause toggle button -->
-                         <button id = "startPauseBtn" class = "primary">Start</button>
+                         <button id = "startPauseBtn" type = "button" class = "primary">Start</button>
                          <!-- Reset current session timer -->
-                          <button id = "resetBtn" class = "danger">Reset</button>
+                          <button id = "resetBtn" type = "button" class = "danger">Reset</button>
                           <!-- Finish Day logs today's minutes and updates streaks -->
-                           <button id = "finishBtn" class = "info">Finish Day</button>
+                           <button id = "finishBtn" type = "button" class = "info">Finish Day</button>
                            <!-- Numeric input for daily goal (minutes) -->
                             <label class = "pill">Goal (mins): <input id = "goalInput" type = "number" min = "1" step = "1" value = "120"></label>
                             <!-- Session counter display -->
                              <span id = "sessionsPill" class = "pill">Sessions today: 0</span> 
                              <!-- Status pill that flips when goal is met -->
-                              <span id = "statusPill" class = "pill">Status: working...</span>
+                              <span id = "statusPill" class = "pill">Status: not started</span>
                               <!-- Notion sync status (shown only after Finish Day when sync is configured) -->
                               <span id = "syncStatus" class = "pill" style = "display:none;"></span>
                     </div>
@@ -125,8 +125,8 @@
               <details class="block" style="margin-top:12px;">
                 <summary class="label" style="cursor:pointer;">Data (Export / Import)</summary>
                 <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:10px; align-items:center;">
-                    <button id="exportBtn" class="info">Export</button>
-                    <button id="importBtn" class="danger">Import</button>
+                    <button id="exportBtn" type="button" class="info">Export</button>
+                    <button id="importBtn" type="button" class="danger">Import</button>
                     <span id="dataStatus" class="pill">Status: ready</span>
                 </div>
                 <div style="margin-top:10px;">
@@ -158,7 +158,7 @@
                         <input id="notionDBInput" type="text" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" autocomplete="off">
                     </label>
                     <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-                        <button id="saveSettingsBtn" class="primary">Save Settings</button>
+                        <button id="saveSettingsBtn" type="button" class="primary">Save Settings</button>
                         <span id="settingsStatus" class="pill">Status: not saved</span>
                     </div>
                     <div class="footer">
@@ -332,7 +332,7 @@
                     // Start a new one
                     state.sessions.push({ start: Date.now(), end: null})
                     // Persists
-                    saveState(state);
+                    saveState();
                 }
                 // Marks running 
                 ticking = true;
@@ -369,7 +369,7 @@
                 // Stops interval
                 if(tickHandle) clearInterval(tickHandle);
                 // Persists
-                saveState(state); 
+                saveState(); 
                 // Refreshes UI
                 render();
             };
@@ -385,7 +385,7 @@
                 // Clears sessions
                 state.sessions = [];
 
-                saveState(state);
+                saveState();
                 render();
             };
 
@@ -424,8 +424,9 @@
 
                 // Whether the goal is met
                 const met = elapsed >= goalSecs;
-                // Status text
-                pillStatus.textContent = met ? "Status: Goal met" : "Status: working...";
+                // Status text — distinguish not-yet-started from in-progress
+                const notStarted = elapsed === 0 && state.sessions.length === 0;
+                pillStatus.textContent = notStarted ? "Status: not started" : (met ? "Status: goal met" : "Status: working...");
                 // Visual cue
                 pillStatus.style.borderColor = met ? "var(--accent)" : "#1f2937";
                 // Show sessions count
@@ -504,7 +505,7 @@
                 // --- Local save always happens first, unconditionally ---
                 state.history[date] = { minutes: mins, goalMins: goal, met };
                 state.sessions = [];
-                saveState(state);
+                saveState();
                 recomputeBestStreak();
                 alert(`Logged ${mins} min for ${date}${met ? " — goal met!" : ""}.`);
                 render();
@@ -590,7 +591,7 @@
                 }
                 // Stores best
                 state.bestStreak = best;
-                saveState(state);
+                saveState();
             };
 
             // Renders history table and streak numbers
@@ -638,7 +639,7 @@
                 const v = Number(inputGoal.value || 0);
                 // Clamps to >= 1 minute
                 state.goalMins = Math.max(1, Math.floor(v));
-                saveState(state);
+                saveState();
                 render(); 
             });
 
@@ -757,17 +758,6 @@
                 render();
                 dataStatus.textContent = "Status: imported successfully";
             });
-
-            /* Fallback inline handler
-            function toggleStartPause(){
-                try{
-                    ticking ? pauseTimer() : startTimer();
-                }
-                catch(e){
-                    console.error(e);
-                    alert("Time error - see console for details.");
-                }
-            } */
 
             // Initial boot
             // Initializes best streak
