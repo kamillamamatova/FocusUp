@@ -442,6 +442,7 @@ document.getElementById('darkModeBtn').addEventListener('click', () => {
 const NOTION_ERROR_LABELS = {
     access_denied:         'You cancelled the Notion authorisation.',
     missing_code:          'Authorisation failed — no code was returned. Please try again.',
+    state_mismatch:        'Authorisation could not be verified — your session may have expired. Please try again.',
     token_exchange_failed: 'Could not complete sign-in with Notion. Please try again.',
     network_error:         'A network error occurred during authorisation. Check your connection.',
     storage_error:         'Sign-in succeeded but the token could not be saved. Please try again.',

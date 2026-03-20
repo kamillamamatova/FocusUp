@@ -6,41 +6,29 @@
  *
  * Idempotency: before creating, we query the database for an existing page
  * whose Date property matches the given date.  If one exists we PATCH it
- * instead of creating a duplicate.  Safe to call multiple times for the
- * same day.
+ * instead of creating a duplicate.  Safe to call multiple times for the same day.
  *
  * Expected request body:
  *   { date: "YYYY-MM-DD", minutes: number, goal: number, met: boolean }
  */
 
-const router    = require('express').Router();
-const { getToken } = require('../db');
+const router      = require('express').Router();
+const requireAuth = require('../middleware/auth');
 
 const NOTION_VERSION = '2022-06-28';
 
-// ── Auth guard ────────────────────────────────────────────
-function requireAuth(req, res, next) {
-    if (!req.session?.connected) {
-        return res.status(401).json({ error: 'Not authenticated — connect Notion first' });
-    }
-    const row = getToken(req.session.id);
-    if (!row) {
-        req.session.connected = false;
-        return res.status(401).json({ error: 'Session expired — please reconnect Notion' });
-    }
-    if (!row.selected_db_id) {
-        return res.status(400).json({ error: 'No Notion database selected — choose one in the Notion Sync panel' });
-    }
-    req.notionToken = row.access_token;
-    req.dbId        = row.selected_db_id;
-    next();
-}
-
 // ── POST /api/sync ────────────────────────────────────────
 router.post('/', requireAuth, async (req, res) => {
+    // Ensure the user has already selected a target database.
+    const dbId = req.tokenRow.selected_db_id;
+    if (!dbId) {
+        return res.status(400).json({
+            error: 'No Notion database selected — choose one in the Notion Sync panel',
+        });
+    }
+
     const { date, minutes, goal, met } = req.body || {};
 
-    // Validate shape
     if (
         typeof date    !== 'string'  || !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
         typeof minutes !== 'number'  || minutes < 0  ||
@@ -67,23 +55,21 @@ router.post('/', requireAuth, async (req, res) => {
     };
 
     try {
-        // ── Check for an existing page with the same date (idempotency) ──
-        const existing = await findExistingPage(req.notionToken, req.dbId, date, headers);
+        const existingId = await findExistingPage(req.notionToken, dbId, date, headers);
 
         let notionRes, action;
-        if (existing) {
-            // Update the existing page instead of creating a duplicate.
-            notionRes = await fetch(`https://api.notion.com/v1/pages/${existing}`, {
-                method:  'PATCH',
+        if (existingId) {
+            notionRes = await fetch(`https://api.notion.com/v1/pages/${existingId}`, {
+                method: 'PATCH',
                 headers,
-                body:    JSON.stringify({ properties }),
+                body:   JSON.stringify({ properties }),
             });
             action = 'updated';
         } else {
             notionRes = await fetch('https://api.notion.com/v1/pages', {
-                method:  'POST',
+                method: 'POST',
                 headers,
-                body:    JSON.stringify({ parent: { database_id: req.dbId }, properties }),
+                body:   JSON.stringify({ parent: { database_id: dbId }, properties }),
             });
             action = 'created';
         }
@@ -91,13 +77,14 @@ router.post('/', requireAuth, async (req, res) => {
         const body = await notionRes.json();
 
         if (!notionRes.ok) {
+            console.error('Notion write failed — status:', notionRes.status, 'code:', body?.code);
             return res.status(502).json({ error: notionErrorMessage(notionRes.status, body) });
         }
 
         return res.json({ ok: true, action, pageId: body.id });
 
     } catch (err) {
-        console.error('Sync error:', err);
+        console.error('Sync error:', err.message);
         return res.status(502).json({ error: 'Could not reach Notion — check your connection' });
     }
 });
@@ -106,19 +93,20 @@ router.post('/', requireAuth, async (req, res) => {
 
 /**
  * Query the database for a page whose Date property equals `date`.
- * Returns the page ID string if found, null otherwise.
+ * Returns the page ID if found, null otherwise.
+ * Query failures are swallowed so the write attempt can surface the real error.
  */
 async function findExistingPage(token, dbId, date, headers) {
     try {
         const res = await fetch(`https://api.notion.com/v1/databases/${dbId}/query`, {
-            method:  'POST',
+            method: 'POST',
             headers,
-            body:    JSON.stringify({
+            body:   JSON.stringify({
                 filter:    { property: 'Date', date: { equals: date } },
                 page_size: 1,
             }),
         });
-        if (!res.ok) return null; // treat query failure as "not found" — write will surface the real error
+        if (!res.ok) return null;
         const data = await res.json();
         return data.results?.[0]?.id || null;
     } catch {
@@ -126,27 +114,18 @@ async function findExistingPage(token, dbId, date, headers) {
     }
 }
 
-/**
- * Map Notion API error responses to user-readable messages.
- */
 function notionErrorMessage(status, body) {
-    if (status === 401) {
-        return 'Notion token expired — please disconnect and reconnect';
-    }
-    if (status === 404) {
-        return 'Database not found — it may have been deleted or access was revoked. Choose a different database.';
-    }
+    if (status === 401) return 'Notion token expired — please disconnect and reconnect';
+    if (status === 404) return 'Database not found — it may have been deleted or access was revoked. Choose a different database.';
+    if (status === 429) return 'Notion rate limit reached — please try again in a moment';
     if (status === 400) {
         const msg = (body?.message || '').toLowerCase();
-        if (msg.includes('property') || msg.includes('validation_error') || body?.code === 'validation_error') {
-            return 'Property mismatch — make sure your database has columns named Date (date), Minutes (number), Goal (number), and Met (checkbox)';
+        if (msg.includes('property') || body?.code === 'validation_error') {
+            return 'Property mismatch — make sure your database has columns: Date (date), Minutes (number), Goal (number), Met (checkbox)';
         }
         return `Notion rejected the request: ${body?.message || 'bad request'}`;
     }
-    if (status === 429) {
-        return 'Notion rate limit reached — please try again in a moment';
-    }
-    return `Notion error (HTTP ${status}): ${body?.message || 'unknown error'}`;
+    return `Notion error (HTTP ${status})`;
 }
 
 module.exports = router;

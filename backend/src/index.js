@@ -21,8 +21,15 @@ if (missing.length) {
     process.exit(1);
 }
 
-const app  = express();
-const PORT = process.env.PORT || 3001;
+const app        = express();
+const PORT       = process.env.PORT || 3001;
+const IS_PROD    = process.env.NODE_ENV === 'production';
+
+// ── Trust proxy ───────────────────────────────────────────
+// Required when running behind a reverse proxy (Railway, Render, Heroku, nginx).
+// Without this, req.secure is always false and the session cookie's `secure`
+// flag is never set, even over HTTPS.
+if (IS_PROD) app.set('trust proxy', 1);
 
 // ── CORS ──────────────────────────────────────────────────
 const allowedOrigins = process.env.FRONTEND_URL
@@ -32,31 +39,34 @@ const allowedOrigins = process.env.FRONTEND_URL
 
 app.use(cors({
     origin: (origin, cb) => {
-        // Allow no-origin requests (curl, same-origin) in dev.
-        if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+        // Allow requests with no Origin header only in development (e.g. curl, file://).
+        // In production every browser request carries an Origin.
+        if (!origin && !IS_PROD) return cb(null, true);
+        if (origin && allowedOrigins.includes(origin)) return cb(null, true);
         cb(Object.assign(new Error(`CORS: origin not allowed: ${origin}`), { status: 403 }));
     },
     credentials: true,
 }));
 
 // ── Body parsing ──────────────────────────────────────────
-app.use(express.json());
+// 10 kb limit is well above any legitimate request body in this app.
+app.use(express.json({ limit: '10kb' }));
 
 // ── Sessions ──────────────────────────────────────────────
 // PRODUCTION NOTES:
-//   1. Replace MemoryStore with connect-redis (or similar) so sessions
-//      survive restarts and work across multiple server instances.
-//   2. Ensure NODE_ENV=production is set so secure:true activates
-//      (requires HTTPS — use a reverse proxy like nginx or a PaaS that
-//      terminates TLS and sets the X-Forwarded-Proto header, then also
-//      set `app.set('trust proxy', 1)` here).
+//   1. Replace MemoryStore with connect-redis (or similar) so sessions survive
+//      restarts and scale across multiple instances.
+//   2. Set NODE_ENV=production so `secure: true` activates (HTTPS required).
+//   3. If the frontend is embedded in a Notion iframe, SameSite='lax' will block
+//      the session cookie from being sent in cross-site requests from the iframe.
+//      See DEPLOYMENT.md for the full iframe/cookie discussion.
 app.use(session({
     secret:            process.env.SESSION_SECRET,
     resave:            false,
     saveUninitialized: false,
     cookie: {
         httpOnly: true,
-        secure:   process.env.NODE_ENV === 'production',
+        secure:   IS_PROD,
         sameSite: 'lax',
         maxAge:   7 * 24 * 60 * 60 * 1000, // 1 week
     },
@@ -79,8 +89,12 @@ app.use((_req, res) => {
 // ── Error handler ─────────────────────────────────────────
 // eslint-disable-next-line no-unused-vars
 app.use((err, _req, res, _next) => {
-    console.error(err);
-    res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
+    // Always log the full error server-side for diagnostics.
+    console.error(err.stack || err);
+    // Return minimal detail to the client — never expose stack traces.
+    const status  = err.status || 500;
+    const message = status < 500 ? (err.message || 'Bad request') : 'Internal server error';
+    res.status(status).json({ error: message });
 });
 
 // ── Start ─────────────────────────────────────────────────

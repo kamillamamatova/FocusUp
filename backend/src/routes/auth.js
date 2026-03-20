@@ -18,9 +18,12 @@ const { saveToken, getToken, deleteToken } = require('../db');
 const NOTION_OAUTH_BASE = 'https://api.notion.com/v1/oauth/authorize';
 const NOTION_TOKEN_URL  = 'https://api.notion.com/v1/oauth/token';
 
+// The primary frontend origin — used as the redirect target after OAuth.
+// When FRONTEND_URL contains multiple comma-separated origins, use the first.
+const frontendBase = () => process.env.FRONTEND_URL.split(',')[0].trim();
+
 // ── 1. Initiate OAuth ─────────────────────────────────────
 router.get('/notion', (req, res) => {
-    // Generate and store CSRF state in the session before redirecting.
     const state = randomBytes(16).toString('hex');
     req.session.oauthState = state;
 
@@ -47,30 +50,30 @@ router.get('/notion', (req, res) => {
 // ── 2. OAuth callback ─────────────────────────────────────
 router.get('/notion/callback', async (req, res) => {
     const { code, state, error } = req.query;
-    const frontendBase = process.env.FRONTEND_URL || '/';
+    const base = frontendBase();
 
     // Notion returned an error (e.g. user clicked "Cancel").
     if (error) {
-        console.warn('Notion OAuth denied:', error);
-        return res.redirect(`${frontendBase}?notion_error=${encodeURIComponent(error)}`);
+        console.warn('Notion OAuth denied by user:', error);
+        return res.redirect(`${base}?notion_error=${encodeURIComponent(error)}`);
     }
 
-    // Missing code — shouldn't happen in normal flow.
     if (!code) {
-        return res.redirect(`${frontendBase}?notion_error=missing_code`);
+        return res.redirect(`${base}?notion_error=missing_code`);
     }
 
     // CSRF check: state in query must match what we stored in the session.
+    // On mismatch, redirect to the frontend rather than returning raw JSON —
+    // this is a browser flow so the user should see a proper page.
     if (!req.session.oauthState || req.session.oauthState !== state) {
         console.warn('OAuth state mismatch — possible CSRF or expired session');
-        return res.status(400).json({ error: 'Invalid OAuth state — try connecting again' });
+        return res.redirect(`${base}?notion_error=state_mismatch`);
     }
     delete req.session.oauthState;
 
     // Exchange the authorisation code for an access token.
     let tokenData;
     try {
-        // Notion requires HTTP Basic auth using client_id:client_secret.
         const credentials = Buffer
             .from(`${process.env.NOTION_CLIENT_ID}:${process.env.NOTION_CLIENT_SECRET}`)
             .toString('base64');
@@ -78,8 +81,8 @@ router.get('/notion/callback', async (req, res) => {
         const tokenRes = await fetch(NOTION_TOKEN_URL, {
             method:  'POST',
             headers: {
-                'Authorization': `Basic ${credentials}`,
-                'Content-Type':  'application/json',
+                'Authorization':  `Basic ${credentials}`,
+                'Content-Type':   'application/json',
                 'Notion-Version': '2022-06-28',
             },
             body: JSON.stringify({
@@ -92,14 +95,14 @@ router.get('/notion/callback', async (req, res) => {
         tokenData = await tokenRes.json();
 
         if (!tokenRes.ok) {
-            // Notion returns structured errors like { object: 'error', code: '...', message: '...' }
-            console.error('Notion token exchange failed:', tokenData);
-            const notionCode = tokenData.code || 'token_exchange_failed';
-            return res.redirect(`${frontendBase}?notion_error=${encodeURIComponent(notionCode)}`);
+            // Log only the error code/message, not the full body which may contain tokens.
+            console.error('Notion token exchange failed — status:', tokenRes.status, 'code:', tokenData?.code);
+            const notionCode = tokenData?.code || 'token_exchange_failed';
+            return res.redirect(`${base}?notion_error=${encodeURIComponent(notionCode)}`);
         }
     } catch (err) {
-        console.error('Token exchange network error:', err);
-        return res.redirect(`${frontendBase}?notion_error=network_error`);
+        console.error('Token exchange network error:', err.message);
+        return res.redirect(`${base}?notion_error=network_error`);
     }
 
     // Persist token in SQLite, keyed by express-session ID.
@@ -107,26 +110,24 @@ router.get('/notion/callback', async (req, res) => {
     try {
         saveToken(req.session.id, tokenData);
     } catch (err) {
-        console.error('Failed to persist token:', err);
-        return res.redirect(`${frontendBase}?notion_error=storage_error`);
+        console.error('Failed to persist token:', err.message);
+        return res.redirect(`${base}?notion_error=storage_error`);
     }
 
     // Mark session as connected (cheap flag — avoids a DB lookup on /status).
     req.session.connected = true;
     req.session.save(err => {
-        if (err) console.error('Session save error after token exchange:', err);
-        res.redirect(`${frontendBase}?notion_connected=true`);
+        if (err) console.error('Session save error after token exchange:', err.message);
+        res.redirect(`${base}?notion_connected=true`);
     });
 });
 
 // ── 3. Auth status ────────────────────────────────────────
-// Called by the frontend on load to know whether to show "Connect" or workspace info.
 router.get('/status', (req, res) => {
     if (!req.session?.connected) {
         return res.json({ connected: false });
     }
 
-    // Confirm the token actually exists in DB (guards against orphaned sessions).
     const row = getToken(req.session.id);
     if (!row) {
         req.session.connected = false;
@@ -144,13 +145,12 @@ router.get('/status', (req, res) => {
 
 // ── 4. Disconnect ─────────────────────────────────────────
 router.post('/logout', (req, res) => {
-    if (req.session?.id) {
-        deleteToken(req.session.id);
-    }
-    req.session?.destroy(err => {
-        if (err) console.error('Session destroy error on logout:', err);
-    });
+    if (req.session?.id) deleteToken(req.session.id);
+    // Respond before destroying so the client gets the 200.
     res.json({ ok: true });
+    req.session?.destroy(err => {
+        if (err) console.error('Session destroy error on logout:', err.message);
+    });
 });
 
 module.exports = router;

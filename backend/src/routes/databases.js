@@ -4,31 +4,13 @@
  *
  *   GET  /api/databases         — list databases accessible to this session's token
  *   POST /api/databases/select  — save the user's chosen database
- *
- * Both routes require an authenticated session (Notion token present in DB).
  */
 
-const router = require('express').Router();
-const { getToken, saveSelectedDb } = require('../db');
-
-// ── Auth guard ────────────────────────────────────────────
-function requireAuth(req, res, next) {
-    if (!req.session?.connected) {
-        return res.status(401).json({ error: 'Not authenticated — connect Notion first' });
-    }
-    const row = getToken(req.session.id);
-    if (!row) {
-        req.session.connected = false;
-        return res.status(401).json({ error: 'Session expired — please reconnect Notion' });
-    }
-    req.notionToken = row.access_token;
-    req.tokenRow    = row;
-    next();
-}
+const router      = require('express').Router();
+const requireAuth = require('../middleware/auth');
+const { saveSelectedDb } = require('../db');
 
 // ── GET /api/databases ────────────────────────────────────
-// Uses the Notion Search API to list databases the user shared with the integration.
-// Notion only returns objects explicitly granted during OAuth — not all workspace content.
 router.get('/', requireAuth, async (req, res) => {
     try {
         const notionRes = await fetch('https://api.notion.com/v1/search', {
@@ -39,8 +21,8 @@ router.get('/', requireAuth, async (req, res) => {
                 'Content-Type':   'application/json',
             },
             body: JSON.stringify({
-                filter: { value: 'database', property: 'object' },
-                sort:   { direction: 'descending', timestamp: 'last_edited_time' },
+                filter:    { value: 'database', property: 'object' },
+                sort:      { direction: 'descending', timestamp: 'last_edited_time' },
                 page_size: 50,
             }),
         });
@@ -51,9 +33,9 @@ router.get('/', requireAuth, async (req, res) => {
             if (notionRes.status === 401) {
                 return res.status(401).json({ error: 'Notion token expired — please reconnect' });
             }
-            console.error('Notion search error:', data);
+            console.error('Notion search error — status:', notionRes.status, 'code:', data?.code);
             return res.status(502).json({
-                error: data.message || `Notion API error (HTTP ${notionRes.status})`,
+                error: data?.message || `Notion API error (HTTP ${notionRes.status})`,
             });
         }
 
@@ -66,7 +48,7 @@ router.get('/', requireAuth, async (req, res) => {
 
         res.json({ databases });
     } catch (err) {
-        console.error('Failed to fetch Notion databases:', err);
+        console.error('Failed to fetch Notion databases:', err.message);
         res.status(502).json({ error: 'Could not reach Notion — check your connection and try again' });
     }
 });
@@ -85,13 +67,11 @@ router.post('/select', requireAuth, (req, res) => {
 
 // ── Helpers ───────────────────────────────────────────────
 
-/** Flatten a Notion rich_text / title array to a plain string. */
 function richTextToPlain(arr) {
     if (!Array.isArray(arr)) return '';
     return arr.map(t => t.plain_text || '').join('').trim();
 }
 
-/** Return a single emoji or null from a Notion icon object. */
 function iconToString(icon) {
     if (!icon) return null;
     if (icon.type === 'emoji') return icon.emoji;
