@@ -360,8 +360,8 @@
                 if(open) open.end = Date.now();
                 // Mark not running
                 ticking = false;
-                // Updates label
-                btnStartPause.textContent = "Start";
+                // Updates label — "Continue" if there are completed sessions, "Start" if fresh
+                btnStartPause.textContent = state.sessions.length > 0 ? "Continue" : "Start";
                 // Green again
                 btnStartPause.classList.add("primary");
                 // Removes red
