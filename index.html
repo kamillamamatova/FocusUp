@@ -465,8 +465,8 @@
             const currentStreak = () => {
                 // Streak counter
                 let count = 0;
-                // Starts at today
-                let d = new Date(todayKey());
+                // Starts at today's day index
+                let idx = dayIndex(todayKey());
 
                 // Walks backwards day by day while met == true
                 while(true){
@@ -475,7 +475,7 @@
                     const m = String(d.getUTCMonth() + 1).padStart(2, "0");
                     const day = String(d.getUTCDate()).padStart(2, "0");
                     // YYYY-MM-DD
-                    const key = d.toISOString().slice(0, 10);
+                    const key = `${y}-${m}-${day}`;
 
                     // History record for that day
                     const rec = state.history[key];
@@ -507,8 +507,8 @@
                 for(const k of keys){
                     // Record
                     const rec = state.history[k];
-                    // Checks if this day directly follows the previous day
-                    const contiguous = prev && ((new Date(k) - new Date(prev)) === 24 * 3600 * 1000);
+                    // Checks if this day directly follows the previous day (timezone-safe)
+                    const contiguous = prev && (dayIndex(k) - dayIndex(prev) === 1);
                     // Resets when gap exists
                     if(!contiguous) cur = 0;
                     // Updates counters
@@ -592,29 +592,7 @@
                 localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
             }
 
-            // Reads from inputs, then saves
-            function saveNotionSettingsUI(){
-                const mode = document.getElementById("syncMode").value;
-                const input = document.getElementById("notionTokenInput").value.time();
-                const dbId = document.getElementById("notionDBInput").value.trim();
-                const apiUrl = document.getElementById("serverUrlInput").value.trim();
-
-                const s = { mode, notionToken, dbId, apiUrl };
-                saveSettings(s);
-                document.getElementById("settingsStatus").textContent = "Status: saved";
-            }
-
-            // Writes settings into inputs at boot
-            function hydrateSettingsUI(){
-                const s = loadSettings();
-                document.getElementById("syncMode").value = s.mode || "none";
-                document.getElementById("notionTokenInput").value = s.token || "";
-                document.getElementById("notionDBInput").value = s.dbId || "";
-                document.getElementById("serverUrlInput").value = s.apiUrl || "";
-                document.getElementById("settingsStatus").textContent = "Status: loaded";
-            }
-
-            // Minimal validity check
+            // Minimal validity check (no settings UI yet; Notion sync deferred)
             function settingsHealth(){
                 const s = loadSettings();
                 if(s.mode === "notion_local"){
@@ -626,15 +604,33 @@
                 return "local-only";
             }
 
-            // Wires the save button
-            document.addEventListener("DOMContentLoaded", () => {
-                const btn = document.getElementById("saveSettingsBtn");
-                if(btn) btn.addEventListener("click", saveNotionSettingsUI);
-                hydrateSettingsUI();
-                // Shows a quick status on the pill
-                const status = settingsHealth();
-                const pill = document.getElementById("settingsStatus");
-                if(pill) pill.textContent = `Status: ${st}`;
+            // Export / Import
+            const btnExport = document.getElementById("exportBtn");
+            const btnImport = document.getElementById("importBtn");
+            const dataBox   = document.getElementById("dataBox");
+            const dataStatus = document.getElementById("dataStatus");
+
+            btnExport.addEventListener("click", () => {
+                dataBox.value = localStorage.getItem(STORE_KEY) || "{}";
+                dataStatus.textContent = "Status: exported";
+            });
+
+            btnImport.addEventListener("click", () => {
+                try {
+                    const parsed = JSON.parse(dataBox.value);
+                    state = parsed;
+                    state.goalMins  ??= 120;
+                    state.sessions  ??= [];
+                    state.history   ??= {};
+                    state.bestStreak ??= 0;
+                    state.lastOpened ??= todayKey();
+                    saveState();
+                    recomputeBestStreak();
+                    render();
+                    dataStatus.textContent = "Status: imported";
+                } catch(e) {
+                    dataStatus.textContent = "Status: invalid JSON";
+                }
             });
 
             /* Fallback inline handler
