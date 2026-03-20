@@ -1,853 +1,752 @@
-<!doctype html>
-<html lang = "en">
-    <head>
-        <!--- Meta charset for proper text rendering -->
-        <meta charset = "utf-8" />
-        <!-- Responsive layout on mobile -->
-         <meta name = "viewport" content = "width=device-width, initial-scale=1" />
-         <!-- Page title shown in the browser tab -->
-          <title>Focus Timer - Goal + Streaks</title>
-          <script>
-            // Apply saved theme immediately to prevent flash of dark theme
-            (function(){ var t = localStorage.getItem("focusTimer.theme"); if(t) document.documentElement.setAttribute("data-theme", t); })();
-          </script>
-          <!-- Minimal, clean styling with CSS variable for easy theming -->
-           <style>
-            /* ── Default (dark) theme ── */
-            :root{
-                --bg: #0f172a; --card: #111827; --surface: #0b1320; --border: #1f2937;
-                --muted: #94a3b8; --text: #e5e7eb;
-                --accent: #22c55e; --accent2: #38bdf8; --danger: #ef4444;
-                --accent-text: #072312; --accent2-text: #041a23; --danger-text: #23070b;
-                --btn-bg: #e5e7eb; --btn-text: #0b1220;
-            }
-            /* ── Pastel themes ── */
-            [data-theme="lavender"]{
-                --bg: #f3f0ff; --card: #ede9ff; --surface: #e4deff; --border: #c4b5fd;
-                --muted: #6d5fa6; --text: #2e1a6e;
-                --accent: #7c3aed; --accent2: #2563eb; --danger: #dc2626;
-                --accent-text: #fff; --accent2-text: #fff; --danger-text: #fff;
-                --btn-bg: #ddd6fe; --btn-text: #2e1a6e;
-            }
-            [data-theme="mint"]{
-                --bg: #f0fdf4; --card: #dcfce7; --surface: #d1fae5; --border: #86efac;
-                --muted: #4a7c5f; --text: #14532d;
-                --accent: #16a34a; --accent2: #0284c7; --danger: #dc2626;
-                --accent-text: #fff; --accent2-text: #fff; --danger-text: #fff;
-                --btn-bg: #bbf7d0; --btn-text: #14532d;
-            }
-            [data-theme="peach"]{
-                --bg: #fff7ed; --card: #ffedd5; --surface: #fed7aa; --border: #fdba74;
-                --muted: #92512a; --text: #431407;
-                --accent: #c2410c; --accent2: #0284c7; --danger: #dc2626;
-                --accent-text: #fff; --accent2-text: #fff; --danger-text: #fff;
-                --btn-bg: #fed7aa; --btn-text: #431407;
-            }
-            [data-theme="rose"]{
-                --bg: #fff1f2; --card: #ffe4e6; --surface: #fecdd3; --border: #fda4af;
-                --muted: #9d3856; --text: #4c0519;
-                --accent: #be123c; --accent2: #7c3aed; --danger: #dc2626;
-                --accent-text: #fff; --accent2-text: #fff; --danger-text: #fff;
-                --btn-bg: #fecdd3; --btn-text: #4c0519;
-            }
-            [data-theme="sky"]{
-                --bg: #f0f9ff; --card: #e0f2fe; --surface: #bae6fd; --border: #7dd3fc;
-                --muted: #2d6e8a; --text: #0c4a6e;
-                --accent: #0284c7; --accent2: #7c3aed; --danger: #dc2626;
-                --accent-text: #fff; --accent2-text: #fff; --danger-text: #fff;
-                --btn-bg: #bae6fd; --btn-text: #0c4a6e;
-            }
-            /* ── Base styles ── */
-            *{ box-sizing: border-box;}
-            body{ margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; background: var(--bg); color: var(--text); display: flex; justify-content: center; padding: 20px; overflow-x: hidden;}
-            .wrap{ width: min(820px, 100%);}
-            .card{ background: linear-gradient(180deg, var(--surface), var(--card)); border: 1px solid var(--border); border-radius: 16px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,.25);}
-            h1{ margin: 0 0 6px; font-size: 24px; line-height: 1.2;}
-            .sub{ color: var(--muted); margin-bottom: 16px;}
-            .row{ display: flex; gap: 14px; flex-wrap: wrap;}
-            .block{ flex: 1 1 180px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px; min-width: 180px;}
-            .big{ font-size: 44px; font-weight: 700; letter-spacing: 1px;}
-            .label{ color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .08em;}
-            .controls{ display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px;}
-            button{ cursor: pointer; border: none; border-radius: 10px; padding: 12px 16px; font-weight: 600; color: var(--btn-text); background: var(--btn-bg);}
-            button.primary{ background: var(--accent); color: var(--accent-text);}
-            button.info{ background: var(--accent2); color: var(--accent2-text);}
-            button.danger{ background: var(--danger); color: var(--danger-text);}
-            input[type="number"]{ width: 110px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--text);}
-            .pill{ display: inline-block; padding: 6px 10px; border-radius: 999px; font-size: 12px; border: 1px solid var(--border); color: var(--muted);}
-            .grid{ display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;}
-            .history{ max-height: 220px; overflow: auto; border: 1px solid var(--border); border-radius: 12px;}
-            .history table{ width: 100%; border-collapse: collapse;}
-            .history th, .history td{ padding: 10px 12px; border-bottom: 1px solid var(--border); text-align: left; font-size: 14px;}
-            .muted{ color: var(--muted);}
-            .ok{ color: var(--accent); font-weight: 700;}
-            .warn{ color: #fbbf24; font-weight: 700;}
-            .neg{ color: #60a5fa; font-weight: 700;}
-            .footer{ margin-top: 10px; color: var(--muted); font-size: 12px;}
-            select{ padding: 8px 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer;}
-            input[type="text"], input[type="password"]{ padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--text); width: 100%;}
-            .settings-row{ display: flex; flex-direction: column; gap: 10px; margin-top: 10px;}
-            .settings-row label{ display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted);}
-            .warn-box{ background: #2a1a00; border: 1px solid #78350f; border-radius: 10px; padding: 10px 12px; font-size: 12px; color: #fbbf24; margin-top: 10px;}
-            /* ── Theme swatches ── */
-            .theme-bar{ display: flex; gap: 8px; align-items: center; margin-bottom: 14px;}
-            .swatch{ width: 22px; height: 22px; border-radius: 50%; padding: 0; border: 2px solid transparent; flex-shrink: 0;}
-            .swatch:hover, .swatch.active{ border-color: var(--text);}
-            @media(max-width: 720px){ .grid{ grid-template-columns: 1fr;} .big{ font-size: 38px;}}
-            @media(max-width: 480px){ body{ padding: 10px;} .card{ padding: 14px;} .big{ font-size: 30px;} button{ padding: 9px 11px; font-size: 13px;} .block{ padding: 10px;}}
-           </style>
-    </head>
-    <body>
-        <!-- Outer container -->
-         <div class = "wrap">
-            <!-- Main card container -->
-             <div class = "card">
-                <!-- App heading -->
-                 <h1>Focus Timer</h1>
-                 <!-- Theme selector -->
-                 <div class="theme-bar">
-                     <span class="label" style="align-self:center;">Theme:</span>
-                     <button type="button" class="swatch" data-theme=""         title="Dark"     style="background:#0f172a;"></button>
-                     <button type="button" class="swatch" data-theme="lavender" title="Lavender" style="background:#c4b5fd;"></button>
-                     <button type="button" class="swatch" data-theme="mint"     title="Mint"     style="background:#86efac;"></button>
-                     <button type="button" class="swatch" data-theme="peach"    title="Peach"    style="background:#fdba74;"></button>
-                     <button type="button" class="swatch" data-theme="rose"     title="Rose"     style="background:#fda4af;"></button>
-                     <button type="button" class="swatch" data-theme="sky"      title="Sky"      style="background:#7dd3fc;"></button>
-                 </div>
-                 <!-- Short description line -->
-                  <div class = "sub">Count up toward a daily goal, log the day, and keep your streak alive.</div>
-                  
-                  <!-- Key Performance Indicator (KPI) showing -->
-                   <div class = "row">
-                    <!-- Elapsed block -->
-                     <div class = "block">
-                        <div class = "label">Elapsed</div>
-                        <div id = "elapsed" class = "big">00:00:00</div>
-                     </div>
-                     <!-- Remaining block (until goal) -->
-                      <div class = "block">
-                        <div class = "label">Remaining to goal</div>
-                        <div id = "remaining" class = "big">02:00:00</div>
-                      </div>
-                      <!-- Overtime block (after goal) -->
-                       <div class = "block">
-                        <div class = "label">Overtime</div>
-                        <div id = "overtime" class = "big">00:00:00</div>
-                       </div>
-                   </div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Focus Timer</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/lucide.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap');
 
-                   <!-- Control row -->
-                    <div class = "controls">
-                        <!-- Start/pause toggle button -->
-                         <button id = "startPauseBtn" type = "button" class = "primary">Start</button>
-                         <!-- Reset current session timer -->
-                          <button id = "resetBtn" type = "button" class = "danger">Reset</button>
-                          <!-- Finish Day logs today's minutes and updates streaks -->
-                           <button id = "finishBtn" type = "button" class = "info">Finish Day</button>
-                           <!-- Numeric input for daily goal (minutes) -->
-                            <label class = "pill">Goal (mins): <input id = "goalInput" type = "number" min = "1" step = "1" value = "120"></label>
-                            <!-- Session counter display -->
-                             <span id = "sessionsPill" class = "pill">Sessions today: 0</span> 
-                             <!-- Status pill that flips when goal is met -->
-                              <span id = "statusPill" class = "pill">Status: not started</span>
-                              <!-- Notion sync status (shown only after Finish Day when sync is configured) -->
-                              <span id = "syncStatus" class = "pill" style = "display:none;"></span>
-                    </div>
-                    
-                    <!-- Secondary grid: streak info + history table -->
-                     <div class = "grid">
-                        <!-- Streaks panel -->
-                         <div class = "block">
-                            <div class = "label">Streaks</div>
-                            <div style = "display: flex; gap: 14px; margin-top: 6px;">
-                                <div>
-                                    <div class = "muted">Current</div>
-                                    <div id = "currentStreak" class = "big">0</div>
-                                </div>
-                                <div>
-                                    <div class = "muted">Best</div>
-                                    <div id = "bestStreak" class = "big">0</div>
-                                </div>
-                            </div>
-                            <div class = "footer">A day counts if minutes >= goal. "Finish Day" records the total.</div>
-                         </div>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-                         <!-- History panel -->
-                          <div class = "block">
-                            <div class = "label">History</div>
-                            <div class = "history" id = "historyBox">
-                                <!-- Table shell created by JS -->
-                            </div>
-                            <div class = "footer">Tip: Export/backup localStorage if switching browsers.</div>
-                          </div>
-                     </div>
-             </div>
-            
-             <!-- Tiny setting panel -->
-              <details class="block" style="margin-top:12px;">
-                <summary class="label" style="cursor:pointer;">Data (Export / Import)</summary>
-                <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:10px; align-items:center;">
-                    <button id="exportBtn" type="button" class="info">Export</button>
-                    <button id="importBtn" type="button" class="danger">Import</button>
-                    <span id="dataStatus" class="pill">Status: ready</span>
-                </div>
-                <div style="margin-top:10px;">
-                    <textarea id="dataBox" rows="6" style="width:100%;" placeholder="Export will appear here. Paste export JSON here to import."></textarea>
-                    <div class="footer">Pro tip: This exports/imports the localStorage key <span class="pill">focusTimer.v1</span>.</div>
-                </div>
-            </details>
-            <!-- Notion sync settings panel -->
-            <details class="block" style="margin-top:12px;">
-                <summary class="label" style="cursor:pointer;">Notion Sync (optional)</summary>
-                <div class="warn-box">
-                    Personal use only: your Notion integration token is stored in this browser's localStorage in plain text.
-                    Do not use this on a shared or public computer.
-                </div>
-                <div class="settings-row">
-                    <label>
-                        Sync mode
-                        <select id="syncMode">
-                            <option value="none">None — local only</option>
-                            <option value="notion_local">Notion (client-side, personal use)</option>
-                        </select>
-                    </label>
-                    <label>
-                        Notion integration token
-                        <input id="notionTokenInput" type="password" placeholder="secret_..." autocomplete="off">
-                    </label>
-                    <label>
-                        Notion database ID
-                        <input id="notionDBInput" type="text" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" autocomplete="off">
-                    </label>
-                    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-                        <button id="saveSettingsBtn" type="button" class="primary">Save Settings</button>
-                        <span id="settingsStatus" class="pill">Status: not saved</span>
-                    </div>
-                    <div class="footer">
-                        Your Notion database must have these property names exactly:
-                        <span class="pill">Date</span> (date),
-                        <span class="pill">Minutes</span> (number),
-                        <span class="pill">Goal</span> (number),
-                        <span class="pill">Met</span> (checkbox).
-                        Get your token at notion.so/my-integrations — share the database with your integration.
-                    </div>
-                </div>
-            </details>
-            <!-- Embed / hosting tip -->
-            <div class="footer" style="margin-top:14px; text-align:center;">
-                To embed in Notion: host this file on a public HTTPS URL, then use the <span class="pill">/embed</span> block and paste the URL.
-                Data is stored in <em>this browser's</em> localStorage — not in Notion.
-            </div>
+    :root {
+      --bg: #f5ede8; --bg2: #ede4df; --card: rgba(255,255,255,0.75);
+      --border: rgba(0,0,0,0.08); --text: #2c2018; --text-muted: #8a7060;
+      --accent: #a08070; --primary: #c96b50; --success: #5a8a6a;
+      --input-bg: #f0e8e4; --pill-bg: #e8ddd8;
+      --btn-primary-from: #3d2e28; --btn-primary-to: #2c201a;
+      --btn-success-from: #5a8a6a; --btn-success-to: #4a7a5a;
+      --warning-bg: rgba(201,107,80,0.08); --warning-border: rgba(201,107,80,0.2);
+      --success-bg: rgba(90,138,106,0.08); --success-border: rgba(90,138,106,0.2);
+      --table-bg: rgba(255,255,255,0.4); --table-hover: rgba(255,255,255,0.6);
+      --timer-bg: linear-gradient(135deg, rgba(255,255,255,0.5), rgba(245,237,232,0.3));
+    }
+
+    body { font-family: 'DM Sans', sans-serif; background: var(--bg); min-height: 100vh; padding: 32px 16px 48px; transition: background 0.3s; }
+    .container { max-width: 800px; margin: 0 auto; }
+
+    /* Header */
+    .header { text-align: center; margin-bottom: 24px; }
+    .header-row { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 6px; }
+    h1 { font-size: 28px; font-weight: 600; color: var(--text); letter-spacing: -0.5px; }
+    .subtitle { font-size: 14px; color: var(--text-muted); }
+    .palette-btn { background: none; border: none; cursor: pointer; color: var(--text-muted); padding: 6px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
+    .palette-btn:hover { background: rgba(255,255,255,0.4); }
+
+    /* Card */
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 24px; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.06); backdrop-filter: blur(8px); margin-bottom: 12px; }
+
+    /* Theme Picker */
+    .theme-card { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 20px; margin-bottom: 12px; backdrop-filter: blur(8px); box-shadow: 0 4px 16px rgba(0,0,0,0.05); }
+    .mode-toggle { display: flex; justify-content: center; gap: 8px; margin-bottom: 16px; }
+    .mode-btn { display: flex; align-items: center; gap: 6px; padding: 8px 18px; border-radius: 10px; border: 1px solid var(--border); background: transparent; color: var(--text); cursor: pointer; font-family: inherit; font-size: 14px; font-weight: 500; transition: all 0.2s; }
+    .mode-btn.active { background: var(--input-bg); box-shadow: 0 0 0 2px var(--primary); }
+    .palette-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+    .palette-item { padding: 10px; border-radius: 14px; border: 1px solid var(--border); background: var(--pill-bg); cursor: pointer; text-align: center; transition: all 0.2s; }
+    .palette-item:hover { transform: scale(1.04); }
+    .palette-item.selected { box-shadow: 0 0 0 2px var(--primary); transform: scale(1.06); background: var(--input-bg); }
+    .palette-swatch { width: 100%; height: 32px; border-radius: 8px; margin-bottom: 6px; }
+    .palette-name { font-size: 11px; color: var(--text); line-height: 1.2; }
+
+    /* Timer */
+    .timer-section { background: var(--timer-bg); border-bottom: 1px solid var(--border); padding: 36px 32px 28px; }
+    .timer-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+    .timer-col { text-align: center; }
+    .timer-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); margin-bottom: 6px; }
+    .timer-digits { font-family: 'DM Mono', monospace; font-size: 32px; font-weight: 500; letter-spacing: 0.04em; font-variant-numeric: tabular-nums; color: var(--text); }
+    .timer-digits.remaining { color: var(--primary); }
+    .timer-digits.overtime { color: var(--success); }
+    .controls { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; }
+
+    /* Buttons */
+    .btn { display: inline-flex; align-items: center; gap: 8px; padding: 11px 22px; border-radius: 50px; border: none; font-family: inherit; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.15s; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .btn:active { transform: scale(0.96); }
+    .btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+    .btn-primary { background: linear-gradient(180deg, var(--btn-primary-from), var(--btn-primary-to)); color: white; }
+    .btn-primary:hover { filter: brightness(1.15); }
+    .btn-secondary { background: var(--input-bg); color: var(--text); border: 1px solid var(--border); box-shadow: none; }
+    .btn-secondary:hover { background: var(--pill-bg); }
+    .btn-success { background: linear-gradient(180deg, var(--btn-success-from), var(--btn-success-to)); color: white; }
+    .btn-success:hover { filter: brightness(1.1); }
+
+    /* Goal row */
+    .goal-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 20px 32px; border-bottom: 1px solid var(--border); }
+    .goal-label { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--text-muted); }
+    .goal-input { width: 72px; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text); font-family: inherit; font-size: 14px; outline: none; transition: box-shadow 0.2s; }
+    .goal-input:focus { box-shadow: 0 0 0 2px var(--primary); }
+    .status-pills { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 50px; font-size: 12px; background: var(--pill-bg); color: var(--text-muted); white-space: nowrap; }
+    .pill svg { width: 12px; height: 12px; }
+    .pill.status-working { background: var(--primary); color: white; }
+    .pill.status-met { background: var(--success); color: white; }
+    .pill.sync-ok { background: var(--success); color: white; }
+    .pill.sync-fail { background: #dc2626; color: white; }
+
+    /* Streaks */
+    .section { padding: 24px 32px; border-bottom: 1px solid var(--border); }
+    .section-title { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 16px; }
+    .section-title svg { width: 18px; height: 18px; }
+    .streak-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 10px; }
+    .streak-card { padding: 16px; border-radius: 16px; border: 1px solid var(--warning-border); background: var(--warning-bg); }
+    .streak-card.best { background: var(--success-bg); border-color: var(--success-border); }
+    .streak-label { font-size: 11px; color: var(--accent); margin-bottom: 4px; }
+    .streak-value { font-size: 24px; font-weight: 600; color: var(--primary); }
+    .streak-card.best .streak-value { color: var(--success); }
+    .streak-hint { font-size: 12px; color: var(--accent); }
+
+    /* History */
+    .history-empty { text-align: center; padding: 32px; font-size: 13px; color: var(--accent); }
+    .history-table-wrap { border: 1px solid var(--border); border-radius: 14px; overflow: hidden; max-height: 256px; overflow-y: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    thead { position: sticky; top: 0; background: var(--input-bg); }
+    th { padding: 10px 16px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); font-weight: 600; }
+    tbody { background: var(--table-bg); }
+    td { padding: 10px 16px; font-size: 13px; color: var(--text); border-top: 1px solid var(--border); }
+    tr:hover td { background: var(--table-hover); }
+    .status-badge { display: inline-block; padding: 3px 10px; border-radius: 50px; font-size: 11px; }
+    .status-badge.met { background: var(--success); color: white; }
+    .status-badge.incomplete { background: var(--pill-bg); color: var(--text-muted); }
+
+    /* Collapsible */
+    .collapsible-trigger { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 16px 32px; background: none; border: none; cursor: pointer; border-bottom: 1px solid var(--border); font-family: inherit; transition: background 0.15s; }
+    .collapsible-trigger:hover { background: var(--table-hover); }
+    .collapsible-trigger-left { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; color: var(--text); }
+    .collapsible-trigger-left svg { width: 18px; height: 18px; color: var(--text-muted); }
+    .collapsible-trigger svg.chevron { width: 18px; height: 18px; color: var(--text-muted); transition: transform 0.2s; }
+    .collapsible-body { display: none; padding: 24px 32px; border-bottom: 1px solid var(--border); }
+    .collapsible-body.open { display: block; }
+
+    /* Export/Import */
+    .export-btns { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+    .data-textarea { width: 100%; height: 160px; padding: 12px 16px; border-radius: 14px; border: 1px solid var(--border); background: var(--table-hover); color: var(--text); font-family: 'DM Mono', monospace; font-size: 12px; resize: none; outline: none; transition: box-shadow 0.2s; }
+    .data-textarea:focus { box-shadow: 0 0 0 2px var(--primary); }
+    .export-hint { font-size: 12px; color: var(--accent); margin-top: 10px; }
+
+    /* Notion */
+    .warning-box { background: var(--warning-bg); border: 1px solid var(--warning-border); border-radius: 12px; padding: 14px 16px; margin-bottom: 20px; font-size: 12px; color: var(--accent); }
+    .form-group { margin-bottom: 16px; }
+    .form-label { display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 6px; }
+    .form-input, .form-select { width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text); font-family: inherit; font-size: 14px; outline: none; transition: box-shadow 0.2s; }
+    .form-input:focus, .form-select:focus { box-shadow: 0 0 0 2px var(--primary); }
+    .notion-props { background: var(--success-bg); border: 1px solid var(--success-border); border-radius: 12px; padding: 14px 16px; margin-top: 16px; }
+    .notion-props p { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
+    .notion-props ul { font-size: 12px; color: var(--accent); list-style: none; padding-left: 8px; }
+    .notion-props li { margin-bottom: 2px; }
+    .save-row { display: flex; align-items: center; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+    .success-badge { display: inline-block; padding: 4px 12px; border-radius: 50px; font-size: 12px; background: var(--success); color: white; }
+
+    /* Footer */
+    .footer { text-align: center; margin-top: 20px; font-size: 12px; color: var(--accent); line-height: 1.8; }
+
+    @media (max-width: 600px) {
+      body { padding: 16px 12px 32px; }
+      .timer-section { padding: 24px 16px 20px; }
+      .timer-digits { font-size: 24px; }
+      .goal-row, .section { padding: 16px; }
+      .collapsible-trigger { padding: 14px 16px; }
+      .collapsible-body { padding: 20px 16px; }
+      .palette-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-row">
+      <h1>Focus Timer</h1>
+      <button type="button" class="palette-btn" id="toggleThemePicker" title="Change theme">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
+      </button>
+    </div>
+    <p class="subtitle">Count up toward your daily goal, log your day, and keep your streak alive</p>
+  </div>
+
+  <!-- Theme Picker -->
+  <div class="theme-card" id="themePicker" style="display:none;">
+    <div class="mode-toggle">
+      <button type="button" class="mode-btn active" id="lightModeBtn">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+        Light
+      </button>
+      <button type="button" class="mode-btn" id="darkModeBtn">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+        Dark
+      </button>
+    </div>
+    <div class="palette-grid" id="paletteGrid"></div>
+  </div>
+
+  <!-- Main Card -->
+  <div class="card">
+
+    <!-- Timer -->
+    <div class="timer-section">
+      <div class="timer-grid">
+        <div class="timer-col">
+          <div class="timer-label">Elapsed</div>
+          <div class="timer-digits" id="elapsedDisplay">00:00:00</div>
         </div>
+        <div class="timer-col">
+          <div class="timer-label">Remaining</div>
+          <div class="timer-digits remaining" id="remainingDisplay">02:00:00</div>
+        </div>
+        <div class="timer-col">
+          <div class="timer-label">Overtime</div>
+          <div class="timer-digits overtime" id="overtimeDisplay">00:00:00</div>
+        </div>
+      </div>
+      <div class="controls">
+        <button type="button" class="btn btn-primary" id="startPauseBtn">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="startPauseIcon"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          <span id="startPauseLabel">Start</span>
+        </button>
+        <button type="button" class="btn btn-secondary" id="resetBtn">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+          Reset
+        </button>
+        <button type="button" class="btn btn-success" id="finishDayBtn">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+          Finish Day
+        </button>
+      </div>
+    </div>
 
-         <!-- App logic in vanilla JS -->
-        <script>
-            // Utilities
-            // Formats seconds to HH:MM:SS string
-            const fmt = s => {
-                // Keeps minus sign for negative values
-                const sign = s < 0 ? "-" : "";
-                // Absolute seconds, rounded
-                const t = Math.abs(Math.round(s));
-                // Hours part
-                const h = Math.floor(t / 3600);
-                // Minutes part
-                const m = Math.floor((t % 3600) / 60);
-                // Seconds part
-                const sec = t % 60;
-                // Pad helper
-                const two = n => String(n).padStart(2, "0");
-                // Final formatted string
-                return `${sign}${two(h)}:${two(m)}:${two(sec)}`;
-            };
+    <!-- Goal Row -->
+    <div class="goal-row">
+      <div class="goal-label">
+        Goal (mins)
+        <input type="number" class="goal-input" id="goalInput" value="120" min="1" />
+      </div>
+      <div class="status-pills">
+        <span class="pill">
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span id="sessionsLabel">0 sessions today</span>
+        </span>
+        <span class="pill" id="statusPill">Not started</span>
+        <span class="pill">
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2Z"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+          <span id="syncLabel">Local only</span>
+        </span>
+        <span class="pill" id="syncStatus" style="display:none;"></span>
+      </div>
+    </div>
 
-            // Today's local YYYY-MM-DD (no timezone surprises)
-            const todayKey = () => {
-                // Now
-                const d = new Date();
-                // Year
-                const y = d.getFullYear();
-                // Month 01..12
-                const m = String(d.getMonth() + 1).padStart(2, "0");
-                // Day 01..31
-                const day = String(d.getDate()).padStart(2, "0");
-                // YYYY-MM-DD
-                return `${y}-${m}-${day}`;
-            }
+    <!-- Streaks -->
+    <div class="section">
+      <div class="section-title">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary)"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+        Streaks
+      </div>
+      <div class="streak-grid">
+        <div class="streak-card">
+          <div class="streak-label">Current Streak</div>
+          <div class="streak-value" id="currentStreak">0 days</div>
+        </div>
+        <div class="streak-card best">
+          <div class="streak-label">Best Streak</div>
+          <div class="streak-value" id="bestStreak">0 days</div>
+        </div>
+      </div>
+      <p class="streak-hint">A day counts if minutes &ge; goal. &ldquo;Finish Day&rdquo; records your total for the day.</p>
+    </div>
 
-            // Parses a date key into a UTC day index so streaks logic is consistent everywhere
-            const dayIndex = (key) => {
-                const [y, m, d] = key.split("-").map(Number);
-                return Math.floor(Date.UTC(y, m - 1, d) / 86400000);
-            };
+    <!-- History -->
+    <div class="section">
+      <div class="section-title">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--success)"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+        History (Last 30 Days)
+      </div>
+      <div id="historyContainer"></div>
+    </div>
 
-            // LocalStorage helpers w/ a single namespace key
-            // Storage bucket key
-            const STORE_KEY = "focusTimer.v1";
+    <!-- Data Export / Import -->
+    <div>
+      <button type="button" class="collapsible-trigger" id="dataToggle">
+        <div class="collapsible-trigger-left">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+          Data Export / Import
+        </div>
+        <svg class="chevron" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="dataChevron"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="collapsible-body" id="dataBody">
+        <div class="export-btns">
+          <button type="button" class="btn btn-primary" id="exportBtn" style="padding:8px 16px;font-size:13px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+            Export
+          </button>
+          <button type="button" class="btn btn-secondary" id="importBtn" style="padding:8px 16px;font-size:13px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+            Import
+          </button>
+          <span id="dataStatus" style="font-size:13px;"></span>
+        </div>
+        <textarea class="data-textarea" id="dataTextarea" placeholder="Exported JSON will appear here, or paste JSON to import..."></textarea>
+        <p class="export-hint">Exports/imports localStorage key <strong>focusTimer.v1</strong>. Use this to back up or transfer your data.</p>
+      </div>
+    </div>
 
-            // Loads or empties object
-            const loadState = () => {
-                try { return JSON.parse(localStorage.getItem(STORE_KEY) || "{}"); }
-                catch { return {}; }
-            };
+    <!-- Notion Sync -->
+    <div>
+      <button type="button" class="collapsible-trigger" id="notionToggle" style="border-bottom:none;">
+        <div class="collapsible-trigger-left">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+          Notion Sync Settings
+        </div>
+        <svg class="chevron" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="notionChevron"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="collapsible-body" id="notionBody" style="border-bottom:none;">
+        <div class="warning-box">&#9888;&#65039; Personal use only: your Notion integration token is stored in this browser&rsquo;s localStorage in plain text. Do not use on a shared or public computer.</div>
+        <div class="form-group">
+          <label class="form-label">Sync Mode</label>
+          <select class="form-select" id="syncMode">
+            <option value="none">None &mdash; local only</option>
+            <option value="notion_local">Notion (client-side, personal use)</option>
+          </select>
+        </div>
+        <div id="notionFields" style="display:none;">
+          <div class="form-group">
+            <label class="form-label">Notion Integration Token</label>
+            <input type="password" class="form-input" id="notionTokenInput" placeholder="secret_..." autocomplete="off" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Notion Database ID</label>
+            <input type="text" class="form-input" id="notionDBInput" placeholder="32-character database ID..." autocomplete="off" />
+          </div>
+        </div>
+        <div class="save-row">
+          <button type="button" class="btn btn-success" id="saveSettingsBtn" style="padding:8px 18px;font-size:13px;">Save Settings</button>
+          <span id="settingsStatus"></span>
+        </div>
+        <div class="notion-props" id="notionProps" style="display:none;">
+          <p>Your Notion database must have these property names exactly:</p>
+          <ul>
+            <li>&bull; Date (date)</li>
+            <li>&bull; Minutes (number)</li>
+            <li>&bull; Goal (number)</li>
+            <li>&bull; Met (checkbox)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
 
-            // Simple "save current state"
-            const saveState = () => localStorage.setItem(STORE_KEY, JSON.stringify(state));
+  </div><!-- /card -->
 
-            // Saves when tab is going away/hidden
-            window.addEventListener("beforeunload", () => saveState());
-            document.addEventListener("visibilitychange", () => {
-                if (document.hidden) saveState();
-            });
+  <div class="footer">
+    <p>To embed in Notion: host this page on a public HTTPS URL and use /embed</p>
+    <p>Data is stored in this browser&rsquo;s localStorage &mdash; not in Notion</p>
+  </div>
 
-            // Safety save every 30 secs
-            setInterval(() => saveState(), 30000);
+</div><!-- /container -->
 
-            // Multi tab coherence, if another tab updates state, pull it in
-            window.addEventListener("storage", (e) => {
-                if (e.key === STORE_KEY && e.newValue) {
-                    try {
-                        state = JSON.parse(e.newValue);
-                        render();
-                    } catch {}
-                }
-            });
-            
-            // State
-            // Loads persisted state
-            let state = loadState();
-            // Default daily goal (mins)
-            state.goalMins ??= 120;
-            // Session array for today (each {start, end})
-            state.sessions ??= [];
-            // Map of date ({minutes, goalMins, met})
-            state.history ??= {};
-            // Best streak count
-            state.bestStreak ??= 0;
-            // Last open date to auto rollover 
-            state.lastOpened ??= todayKey();
-            // Persists any defaults
-            saveState();
+<script>
+// ── Utilities ──────────────────────────────────────────────
+const fmt = s => {
+    const sign = s < 0 ? '-' : '';
+    const t = Math.abs(Math.round(s));
+    const h = Math.floor(t / 3600);
+    const m = Math.floor((t % 3600) / 60);
+    const sec = t % 60;
+    const two = n => String(n).padStart(2, '0');
+    return `${sign}${two(h)}:${two(m)}:${two(sec)}`;
+};
 
-            // Dailly rollover
-            // If a new day has started since last opened, clear sessions (but keep history)
-            const ensureToday = () => {
-                // Today
-                const t = todayKey();
-                // New day?
-                if(state.lastOpened !== t){
-                    // Clears sessions for fresh day
-                    state.sessions = [];
-                    // Updates last opened day
-                    state.lastOpened = t;
-                    // Persists
-                    saveState();
-                }
-            };
-            // Runs at load
-            ensureToday();
+const todayKey = () => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+};
 
-            // DOM refs
-            // Elapsed time display
-            const elemElapsed = document.getElementById("elapsed");
-            // Remaining time display
-            const elemRemaining = document.getElementById("remaining");
-            // Overtime display
-            const elemOvertime = document.getElementById("overtime");
-            // Start/pause button
-            const btnStartPause = document.getElementById("startPauseBtn");
-            // Reset button
-            const btnReset = document.getElementById("resetBtn");
-            // Finish Day button
-            const btnFinishDay = document.getElementById("finishBtn");
-            // Goal input
-            const inputGoal = document.getElementById("goalInput");
-            // Sessions counter
-            const pillSessions = document.getElementById("sessionsPill");
-            // Status pill
-            const pillStatus = document.getElementById("statusPill");
-            // Current streak number
-            const streakCurrent = document.getElementById("currentStreak");
-            // Best streak number
-            const streakBest = document.getElementById("bestStreak");
-            // History container
-            const historyBox = document.getElementById("historyBox");
-            
-            // Timer core
-            // Whether timer is running
-            let ticking = false;
-            // setInterval handle
-            let tickHandle = null;
+const dayIndex = key => {
+    const [y, m, d] = key.split('-').map(Number);
+    return Math.floor(Date.UTC(y, m - 1, d) / 86400000);
+};
 
-            // Starts a new session or resumes if currently paused (if there is no open session, push start)
-            const startTimer = () => {
-                // Ensures it's on today's session
-                ensureToday();
+// ── Settings (theme + Notion — stored separately from app state) ──
+const SETTINGS_KEY = 'focusTimerSettings.v1';
+function loadSettings() { try { return JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'); } catch { return {}; } }
+function saveSettings(s) { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); }
+let settings = loadSettings();
 
-                // If already running
-                if(ticking) return;
+// ── Theme definitions ──────────────────────────────────────
+const lightThemes = {
+    warmSand:     { name: 'Warm Sand',     primary: '#c07850', vars: { '--bg':'#f5ede8','--bg2':'#ede4df','--card':'rgba(255,255,255,0.75)','--border':'rgba(0,0,0,0.08)','--text':'#2c2018','--text-muted':'#8a7060','--accent':'#a08070','--primary':'#c07850','--success':'#5a8a6a','--input-bg':'#f0e8e4','--pill-bg':'#e8ddd8','--btn-primary-from':'#3d2e28','--btn-primary-to':'#2c201a','--btn-success-from':'#5a8a6a','--btn-success-to':'#4a7a5a','--warning-bg':'rgba(192,120,80,0.08)','--warning-border':'rgba(192,120,80,0.2)','--success-bg':'rgba(90,138,106,0.08)','--success-border':'rgba(90,138,106,0.2)','--table-bg':'rgba(255,255,255,0.4)','--table-hover':'rgba(255,255,255,0.7)','--timer-bg':'linear-gradient(135deg,rgba(255,255,255,0.5),rgba(245,237,232,0.3))'} },
+    softLavender: { name: 'Soft Lavender', primary: '#7c6aaa', vars: { '--bg':'#f0edf8','--bg2':'#e8e4f4','--card':'rgba(255,255,255,0.75)','--border':'rgba(100,80,160,0.1)','--text':'#2a2040','--text-muted':'#7a6a9a','--accent':'#9080b0','--primary':'#7c6aaa','--success':'#5a8a7a','--input-bg':'#ece8f6','--pill-bg':'#e4dff0','--btn-primary-from':'#3d3060','--btn-primary-to':'#2c2248','--btn-success-from':'#5a8a7a','--btn-success-to':'#4a7a6a','--warning-bg':'rgba(124,106,170,0.08)','--warning-border':'rgba(124,106,170,0.2)','--success-bg':'rgba(90,138,122,0.08)','--success-border':'rgba(90,138,122,0.2)','--table-bg':'rgba(255,255,255,0.4)','--table-hover':'rgba(255,255,255,0.7)','--timer-bg':'linear-gradient(135deg,rgba(255,255,255,0.5),rgba(240,237,248,0.3))'} },
+    mintSage:     { name: 'Mint Sage',     primary: '#4a8a70', vars: { '--bg':'#eaf4ef','--bg2':'#e0ede6','--card':'rgba(255,255,255,0.75)','--border':'rgba(40,100,70,0.1)','--text':'#1a3028','--text-muted':'#5a8070','--accent':'#6a9080','--primary':'#4a8a70','--success':'#3a7a60','--input-bg':'#e0ede6','--pill-bg':'#d4e8de','--btn-primary-from':'#284038','--btn-primary-to':'#1e3028','--btn-success-from':'#4a8a70','--btn-success-to':'#3a7a60','--warning-bg':'rgba(74,138,112,0.08)','--warning-border':'rgba(74,138,112,0.2)','--success-bg':'rgba(58,122,96,0.08)','--success-border':'rgba(58,122,96,0.2)','--table-bg':'rgba(255,255,255,0.4)','--table-hover':'rgba(255,255,255,0.7)','--timer-bg':'linear-gradient(135deg,rgba(255,255,255,0.5),rgba(234,244,239,0.3))'} },
+    peachCoral:   { name: 'Peach Coral',   primary: '#d96a5a', vars: { '--bg':'#faf0ee','--bg2':'#f5e8e4','--card':'rgba(255,255,255,0.8)','--border':'rgba(180,80,60,0.1)','--text':'#3a1a14','--text-muted':'#9a6050','--accent':'#b87060','--primary':'#d96a5a','--success':'#6a9070','--input-bg':'#f4ecea','--pill-bg':'#ece0de','--btn-primary-from':'#5a2018','--btn-primary-to':'#440f07','--btn-success-from':'#6a9070','--btn-success-to':'#5a8060','--warning-bg':'rgba(217,106,90,0.08)','--warning-border':'rgba(217,106,90,0.2)','--success-bg':'rgba(106,144,112,0.08)','--success-border':'rgba(106,144,112,0.2)','--table-bg':'rgba(255,255,255,0.4)','--table-hover':'rgba(255,255,255,0.7)','--timer-bg':'linear-gradient(135deg,rgba(255,255,255,0.5),rgba(250,240,238,0.3))'} },
+    skyBlue:      { name: 'Sky Blue',      primary: '#4a7ab0', vars: { '--bg':'#eef4fa','--bg2':'#e4ecf6','--card':'rgba(255,255,255,0.78)','--border':'rgba(40,80,140,0.1)','--text':'#1a2840','--text-muted':'#5a7090','--accent':'#6a90b0','--primary':'#4a7ab0','--success':'#5a9080','--input-bg':'#e4eef8','--pill-bg':'#d8e8f4','--btn-primary-from':'#1e3858','--btn-primary-to':'#142844','--btn-success-from':'#5a9080','--btn-success-to':'#4a8070','--warning-bg':'rgba(74,122,176,0.08)','--warning-border':'rgba(74,122,176,0.2)','--success-bg':'rgba(90,144,128,0.08)','--success-border':'rgba(90,144,128,0.2)','--table-bg':'rgba(255,255,255,0.4)','--table-hover':'rgba(255,255,255,0.7)','--timer-bg':'linear-gradient(135deg,rgba(255,255,255,0.5),rgba(238,244,250,0.3))'} },
+};
 
-                // Looks for open (no end) session
-                const open = state.sessions.find(s => s.end == null);
-                // If none are open
-                if(!open){
-                    // Start a new one
-                    state.sessions.push({ start: Date.now(), end: null})
-                    // Persists
-                    saveState();
-                }
-                // Marks running 
-                ticking = true;
-                // Updates button label
-                btnStartPause.textContent = "Pause";
-                // Redish accent for pause state
-                btnStartPause.classList.add("danger");
-                // Removes green accent
-                btnStartPause.classList.remove("primary");
+const darkThemes = {
+    charcoalWarm:       { name: 'Charcoal Warm',       primary: '#d4956a', vars: { '--bg':'#1a1614','--bg2':'#221c18','--card':'rgba(40,32,28,0.9)','--border':'rgba(255,200,160,0.1)','--text':'#f0e4d8','--text-muted':'#a09080','--accent':'#907060','--primary':'#d4956a','--success':'#7ab890','--input-bg':'rgba(60,48,40,0.8)','--pill-bg':'rgba(55,44,38,0.8)','--btn-primary-from':'#d4956a','--btn-primary-to':'#c0804c','--btn-success-from':'#7ab890','--btn-success-to':'#6aa880','--warning-bg':'rgba(212,149,106,0.1)','--warning-border':'rgba(212,149,106,0.2)','--success-bg':'rgba(122,184,144,0.1)','--success-border':'rgba(122,184,144,0.2)','--table-bg':'rgba(40,32,28,0.6)','--table-hover':'rgba(50,40,34,0.8)','--timer-bg':'linear-gradient(135deg,rgba(50,40,34,0.6),rgba(30,24,20,0.3))'} },
+    deepPlum:           { name: 'Deep Plum',           primary: '#b088cc', vars: { '--bg':'#16121e','--bg2':'#1c1826','--card':'rgba(35,28,48,0.9)','--border':'rgba(180,140,220,0.1)','--text':'#ede0ff','--text-muted':'#9080b0','--accent':'#7060a0','--primary':'#b088cc','--success':'#80b8a0','--input-bg':'rgba(55,44,75,0.8)','--pill-bg':'rgba(50,40,68,0.8)','--btn-primary-from':'#b088cc','--btn-primary-to':'#9070b0','--btn-success-from':'#80b8a0','--btn-success-to':'#70a890','--warning-bg':'rgba(176,136,204,0.1)','--warning-border':'rgba(176,136,204,0.2)','--success-bg':'rgba(128,184,160,0.1)','--success-border':'rgba(128,184,160,0.2)','--table-bg':'rgba(35,28,48,0.6)','--table-hover':'rgba(45,36,60,0.8)','--timer-bg':'linear-gradient(135deg,rgba(45,36,60,0.6),rgba(25,20,35,0.3))'} },
+    forestDeep:         { name: 'Forest Deep',         primary: '#70c090', vars: { '--bg':'#121a14','--bg2':'#18221a','--card':'rgba(28,40,30,0.9)','--border':'rgba(100,180,120,0.1)','--text':'#d8f0e0','--text-muted':'#80a888','--accent':'#608868','--primary':'#70c090','--success':'#58a878','--input-bg':'rgba(40,58,44,0.8)','--pill-bg':'rgba(36,52,40,0.8)','--btn-primary-from':'#70c090','--btn-primary-to':'#58a878','--btn-success-from':'#58a878','--btn-success-to':'#489868','--warning-bg':'rgba(112,192,144,0.1)','--warning-border':'rgba(112,192,144,0.2)','--success-bg':'rgba(88,168,120,0.1)','--success-border':'rgba(88,168,120,0.2)','--table-bg':'rgba(28,40,30,0.6)','--table-hover':'rgba(36,52,38,0.8)','--timer-bg':'linear-gradient(135deg,rgba(36,52,38,0.6),rgba(20,30,22,0.3))'} },
+    midnightBlue:       { name: 'Midnight Blue',       primary: '#70a8d8', vars: { '--bg':'#101620','--bg2':'#161e2a','--card':'rgba(24,34,50,0.9)','--border':'rgba(100,150,210,0.1)','--text':'#d8e8f8','--text-muted':'#7090b8','--accent':'#507898','--primary':'#70a8d8','--success':'#70b898','--input-bg':'rgba(36,54,80,0.8)','--pill-bg':'rgba(32,48,72,0.8)','--btn-primary-from':'#70a8d8','--btn-primary-to':'#5090c0','--btn-success-from':'#70b898','--btn-success-to':'#60a888','--warning-bg':'rgba(112,168,216,0.1)','--warning-border':'rgba(112,168,216,0.2)','--success-bg':'rgba(112,184,152,0.1)','--success-border':'rgba(112,184,152,0.2)','--table-bg':'rgba(24,34,50,0.6)','--table-hover':'rgba(32,46,66,0.8)','--timer-bg':'linear-gradient(135deg,rgba(32,46,66,0.6),rgba(16,24,38,0.3))'} },
+    chocolateBurgundy:  { name: 'Chocolate Burgundy',  primary: '#e89090', vars: { '--bg':'#1a1014','--bg2':'#22141a','--card':'rgba(40,24,30,0.9)','--border':'rgba(220,140,140,0.1)','--text':'#f0dce0','--text-muted':'#a07880','--accent':'#806068','--primary':'#e89090','--success':'#90b8a0','--input-bg':'rgba(60,38,46,0.8)','--pill-bg':'rgba(54,34,42,0.8)','--btn-primary-from':'#e89090','--btn-primary-to':'#cc7878','--btn-success-from':'#90b8a0','--btn-success-to':'#80a890','--warning-bg':'rgba(232,144,144,0.1)','--warning-border':'rgba(232,144,144,0.2)','--success-bg':'rgba(144,184,160,0.1)','--success-border':'rgba(144,184,160,0.2)','--table-bg':'rgba(40,24,30,0.6)','--table-hover':'rgba(52,32,40,0.8)','--timer-bg':'linear-gradient(135deg,rgba(52,32,40,0.6),rgba(28,16,22,0.3))'} },
+};
 
-                // Ensures only one interval exists
-                if (tickHandle) clearInterval(tickHandle);
-                // Updates UI every second
-                tickHandle = setInterval(render, 1000);
+// ── Theme functions ────────────────────────────────────────
+function applyTheme() {
+    const mode = settings.themeMode || 'light';
+    const themes = mode === 'light' ? lightThemes : darkThemes;
+    const key = (themes[settings.selectedTheme] ? settings.selectedTheme : null) || Object.keys(themes)[0];
+    const theme = themes[key];
+    const root = document.documentElement;
+    Object.entries(theme.vars).forEach(([k, v]) => root.style.setProperty(k, v));
+    document.body.style.background = theme.vars['--bg'];
+}
 
-                // Immediate render
-                render();
-            };
+function buildPaletteGrid() {
+    const mode = settings.themeMode || 'light';
+    const themes = mode === 'light' ? lightThemes : darkThemes;
+    const grid = document.getElementById('paletteGrid');
+    grid.innerHTML = '';
+    Object.entries(themes).forEach(([key, t]) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'palette-item' + (settings.selectedTheme === key ? ' selected' : '');
+        btn.innerHTML = `<div class="palette-swatch" style="background:${t.primary}"></div><div class="palette-name">${t.name}</div>`;
+        btn.addEventListener('click', () => {
+            settings.selectedTheme = key;
+            applyTheme();
+            buildPaletteGrid();
+            saveSettings(settings);
+        });
+        grid.appendChild(btn);
+    });
+}
 
-            // Pauses by stamping the end time on the open session
-            const pauseTimer = () => {
-                // Finds open session
-                const open = state.sessions.find(s => s.end == null);
-                // Stamp end timestamp
-                if(open) open.end = Date.now();
-                // Mark not running
-                ticking = false;
-                // Updates label — "Continue" if there are completed sessions, "Start" if fresh
-                btnStartPause.textContent = state.sessions.length > 0 ? "Continue" : "Start";
-                // Green again
-                btnStartPause.classList.add("primary");
-                // Removes red
-                btnStartPause.classList.remove("danger");
-                // Stops interval
-                if(tickHandle) clearInterval(tickHandle);
-                // Persists
-                saveState(); 
-                // Refreshes UI
-                render();
-            };
+document.getElementById('toggleThemePicker').addEventListener('click', () => {
+    const p = document.getElementById('themePicker');
+    p.style.display = p.style.display === 'none' ? 'block' : 'none';
+});
 
-            // Reset clears all of today's sessions (doesn't touch history)
-            const resetToday = () => {
-                // Asks user for confirmation
-                if(!confirm("Reset today's timer? This clears current sessions but keeps history.")) return;
-                // Is there an open session?
-                const running = state.sessions.some(s => s.end == null);
-                // Ensure it's paused
-                if(running) pauseTimer();
-                // Clears sessions
-                state.sessions = [];
+document.getElementById('lightModeBtn').addEventListener('click', () => {
+    settings.themeMode = 'light';
+    if (!lightThemes[settings.selectedTheme]) settings.selectedTheme = 'warmSand';
+    applyTheme(); buildPaletteGrid();
+    document.getElementById('lightModeBtn').classList.add('active');
+    document.getElementById('darkModeBtn').classList.remove('active');
+    saveSettings(settings);
+});
 
-                saveState();
-                render();
-            };
+document.getElementById('darkModeBtn').addEventListener('click', () => {
+    settings.themeMode = 'dark';
+    if (!darkThemes[settings.selectedTheme]) settings.selectedTheme = 'charcoalWarm';
+    applyTheme(); buildPaletteGrid();
+    document.getElementById('darkModeBtn').classList.add('active');
+    document.getElementById('lightModeBtn').classList.remove('active');
+    saveSettings(settings);
+});
 
-            // Computes today's elapsed seconds from sessions
-            const calcElapsedSecs = () => {
-                // Accumalator
-                let total = 0;
-                // Loops sessions
-                for(const s of state.sessions){
-                    // Uses now for open sessions
-                    const end = (s.end ?? Date.now());
-                    // Adds positive seconds
-                    total += Math.max(0, Math.floor((end - s.start) / 1000));
-                }
-                // Returns total seconds
-                return total;
-            }
+// ── App state ──────────────────────────────────────────────
+const STORE_KEY = 'focusTimer.v1';
+const loadState = () => { try { return JSON.parse(localStorage.getItem(STORE_KEY) || '{}'); } catch { return {}; } };
+const saveState = () => localStorage.setItem(STORE_KEY, JSON.stringify(state));
 
-            // Render loop: updates numbers, pills, and history
-            const render = () => {
-                // Goal >= 1 min
-                const goalSecs = Math.max(60, Math.floor(state.goalMins) * 60);
-                // Computes elapsed seconds
-                const elapsed = calcElapsedSecs();
-                // Remainig time not below zero
-                const remaining = Math.max(0, goalSecs - elapsed);
-                // Positive overtime only
-                const overtime = Math.max(0, elapsed - goalSecs);
+let state = loadState();
+state.goalMins   ??= 120;
+state.sessions   ??= [];
+state.history    ??= {};
+state.bestStreak ??= 0;
+state.lastOpened ??= todayKey();
+saveState();
 
-                // Show elapsed HH:MM:SS
-                elemElapsed.textContent = fmt(elapsed);
-                // Show remaining HH:MM:SS
-                elemRemaining.textContent = fmt(remaining);
-                // Show overtime HH:MM:SS
-                elemOvertime.textContent = fmt(overtime);
+window.addEventListener('beforeunload', saveState);
+document.addEventListener('visibilitychange', () => { if (document.hidden) saveState(); });
+setInterval(saveState, 30000);
+window.addEventListener('storage', e => {
+    if (e.key === STORE_KEY && e.newValue) { try { state = JSON.parse(e.newValue); render(); } catch {} }
+});
 
-                // Whether the goal is met
-                const met = elapsed >= goalSecs;
-                // Status text — distinguish not-yet-started from in-progress
-                const notStarted = elapsed === 0 && state.sessions.length === 0;
-                pillStatus.textContent = notStarted ? "Status: not started" : (met ? "Status: goal met" : "Status: working...");
-                // Visual cue
-                pillStatus.style.borderColor = met ? "var(--accent)" : "#1f2937";
-                // Show sessions count
-                pillSessions.textContent = `Sessions today: ${state.sessions.length}`;
+// ── Daily rollover ─────────────────────────────────────────
+const ensureToday = () => {
+    const t = todayKey();
+    if (state.lastOpened !== t) { state.sessions = []; state.lastOpened = t; saveState(); }
+};
+ensureToday();
 
-                // Keeps input in sync
-                inputGoal.value = String(state.goalMins);
+// ── Timer core ─────────────────────────────────────────────
+let ticking = false;
+let tickHandle = null;
 
-                // Updates history & streaks panel
-                renderHistoryAndStreaks();
-            };
+const calcElapsedSecs = () => {
+    let total = 0;
+    for (const s of state.sessions) {
+        total += Math.max(0, Math.floor(((s.end ?? Date.now()) - s.start) / 1000));
+    }
+    return total;
+};
 
-            // Sync via Notion (token stored in this browser — personal use only)
-            // Returns { ok: bool, message: string } or null if sync is not configured.
-            async function syncFinishToNotion({ date, minutes, goal, met }){
-                const s = loadSettings();
-                // Only runs when notion_local mode is enabled with both credentials
-                if(s.mode !== "notion_local" || !s.token || !s.dbId) return null;
+const startTimer = () => {
+    ensureToday();
+    if (ticking) return;
+    const open = state.sessions.find(s => s.end == null);
+    if (!open) state.sessions.push({ start: Date.now(), end: null });
+    saveState();
+    ticking = true;
+    if (tickHandle) clearInterval(tickHandle);
+    tickHandle = setInterval(render, 1000);
+    render();
+};
 
-                try{
-                    const res = await fetch("https://api.notion.com/v1/pages", {
-                        method: "POST",
-                        headers: {
-                            "Authorization": `Bearer ${s.token}`,
-                            "Notion-Version": "2022-06-28",
-                            "Content-Type": "application/json"
-                        },
-                        body: JSON.stringify({
-                            parent: { database_id: s.dbId },
-                            properties: {
-                                "Date":    { date:     { start: date } },
-                                "Minutes": { number:   minutes },
-                                "Goal":    { number:   goal },
-                                "Met":     { checkbox: met }
-                            }
-                        }),
-                        keepalive: true
-                    });
+const pauseTimer = () => {
+    const open = state.sessions.find(s => s.end == null);
+    if (open) open.end = Date.now();
+    ticking = false;
+    if (tickHandle) clearInterval(tickHandle);
+    saveState();
+    render();
+};
 
-                    if(res.ok){
-                        return { ok: true, message: "Synced to Notion" };
-                    }
+const resetToday = () => {
+    if (!confirm("Reset today's timer? This clears current sessions but keeps history.")) return;
+    if (ticking) pauseTimer();
+    state.sessions = [];
+    saveState();
+    render();
+};
 
-                    // Parse error body for specific guidance
-                    const body = await res.text().catch(() => "");
-                    if(res.status === 401){
-                        return { ok: false, message: "Sync failed: invalid token — check your integration token" };
-                    }
-                    if(res.status === 404){
-                        return { ok: false, message: "Sync failed: database not found — check the ID and share the DB with your integration" };
-                    }
-                    if(res.status === 400 || body.toLowerCase().includes("property")){
-                        return { ok: false, message: "Sync failed: property name mismatch — database needs Date, Minutes, Goal, Met columns" };
-                    }
-                    return { ok: false, message: `Sync failed: HTTP ${res.status}` };
-                }
-                catch(e){
-                    return { ok: false, message: "Sync failed: network error" };
-                }
-            }
+// ── Streaks ────────────────────────────────────────────────
+const currentStreak = () => {
+    let count = 0;
+    let idx = dayIndex(todayKey());
+    while (true) {
+        const d = new Date(idx * 86400000);
+        const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
+        const rec = state.history[key];
+        if (rec && rec.met) { count++; idx--; } else break;
+    }
+    return count;
+};
 
-            // History and Streaks
-            // Finish Day logs minutes locally, then attempts optional Notion sync
-            const finishDay = async () => {
-                // Pauses first if running
-                if(ticking) pauseTimer();
-                // Today YYYY-MM-DD
-                const date = todayKey();
-                // Total minutes rounded
-                const mins = Math.round(calcElapsedSecs() / 60);
-                // Goal minutes int
-                const goal = Math.max(1, Math.floor(state.goalMins));
-                // Goal met flag
-                const met = mins >= goal;
+const recomputeBestStreak = () => {
+    const keys = Object.keys(state.history).sort();
+    let best = 0, cur = 0, prev = null;
+    for (const k of keys) {
+        const contiguous = prev && (dayIndex(k) - dayIndex(prev) === 1);
+        if (!contiguous) cur = 0;
+        if (state.history[k].met) { cur++; best = Math.max(best, cur); } else cur = 0;
+        prev = k;
+    }
+    state.bestStreak = best;
+    saveState();
+};
 
-                // --- Local save always happens first, unconditionally ---
-                state.history[date] = { minutes: mins, goalMins: goal, met };
-                state.sessions = [];
-                saveState();
-                recomputeBestStreak();
-                alert(`Logged ${mins} min for ${date}${met ? " — goal met!" : ""}.`);
-                render();
+// ── Notion sync ────────────────────────────────────────────
+async function syncFinishToNotion({ date, minutes, goal, met }) {
+    const s = loadSettings();
+    if (s.mode !== 'notion_local' || !s.token || !s.dbId) return null;
+    try {
+        const res = await fetch('https://api.notion.com/v1/pages', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${s.token}`, 'Notion-Version': '2022-06-28', 'Content-Type': 'application/json' },
+            body: JSON.stringify({ parent: { database_id: s.dbId }, properties: { 'Date': { date: { start: date } }, 'Minutes': { number: minutes }, 'Goal': { number: goal }, 'Met': { checkbox: met } } }),
+            keepalive: true
+        });
+        if (res.ok) return { ok: true, message: 'Synced to Notion' };
+        const body = await res.text().catch(() => '');
+        if (res.status === 401) return { ok: false, message: 'Sync failed: invalid token' };
+        if (res.status === 404) return { ok: false, message: 'Sync failed: database not found — check ID and share with integration' };
+        if (res.status === 400 || body.toLowerCase().includes('property')) return { ok: false, message: 'Sync failed: property name mismatch — needs Date, Minutes, Goal, Met' };
+        return { ok: false, message: `Sync failed: HTTP ${res.status}` };
+    } catch { return { ok: false, message: 'Sync failed: network error' }; }
+}
 
-                // --- Optional Notion sync (does not affect local data on failure) ---
-                const syncStatusEl = document.getElementById("syncStatus");
-                const s = loadSettings();
-                if(s.mode === "notion_local" && s.token && s.dbId){
-                    syncStatusEl.style.display = "";
-                    syncStatusEl.textContent = "Syncing to Notion...";
-                    syncStatusEl.style.borderColor = "#1f2937";
+// ── Finish Day ─────────────────────────────────────────────
+const finishDay = async () => {
+    if (ticking) pauseTimer();
+    const date = todayKey();
+    const mins = Math.round(calcElapsedSecs() / 60);
+    const goal = Math.max(1, Math.floor(state.goalMins));
+    const met  = mins >= goal;
+    // Local save — always first, unconditionally
+    state.history[date] = { minutes: mins, goalMins: goal, met };
+    state.sessions = [];
+    saveState();
+    recomputeBestStreak();
+    alert(`Logged ${mins} min for ${date}${met ? ' — goal met!' : ''}.`);
+    render();
+    // Optional Notion sync
+    const syncEl = document.getElementById('syncStatus');
+    const s = loadSettings();
+    if (s.mode === 'notion_local' && s.token && s.dbId) {
+        syncEl.style.display = '';
+        syncEl.textContent = 'Syncing...';
+        syncEl.className = 'pill';
+        const result = await syncFinishToNotion({ date, minutes: mins, goal, met });
+        if (result) { syncEl.textContent = result.message; syncEl.className = 'pill ' + (result.ok ? 'sync-ok' : 'sync-fail'); }
+    } else {
+        syncEl.style.display = 'none';
+    }
+};
 
-                    const result = await syncFinishToNotion({ date, minutes: mins, goal, met });
-                    if(result){
-                        syncStatusEl.textContent = result.message;
-                        syncStatusEl.style.borderColor = result.ok ? "var(--accent)" : "var(--danger)";
-                    }
-                } else {
-                    syncStatusEl.style.display = "none";
-                }
-            };
+// ── Render ─────────────────────────────────────────────────
+const render = () => {
+    const goalSecs  = Math.max(60, Math.floor(state.goalMins) * 60);
+    const elapsed   = calcElapsedSecs();
+    const remaining = Math.max(0, goalSecs - elapsed);
+    const overtime  = Math.max(0, elapsed - goalSecs);
 
-            // Computes current streak (consecutive met days up to today)
-            const currentStreak = () => {
-                // Streak counter
-                let count = 0;
-                // Starts at today's day index
-                let idx = dayIndex(todayKey());
+    document.getElementById('elapsedDisplay').textContent   = fmt(elapsed);
+    document.getElementById('remainingDisplay').textContent = fmt(remaining);
+    document.getElementById('overtimeDisplay').textContent  = fmt(overtime);
 
-                // Walks backwards day by day while met == true
-                while(true){
-                    const d = new Date(idx * 86400000);
-                    const y = d.getUTCFullYear();
-                    const m = String(d.getUTCMonth() + 1).padStart(2, "0");
-                    const day = String(d.getUTCDate()).padStart(2, "0");
-                    // YYYY-MM-DD
-                    const key = `${y}-${m}-${day}`;
+    // Start button label + icon
+    const label = document.getElementById('startPauseLabel');
+    const icon  = document.getElementById('startPauseIcon');
+    if (ticking) {
+        label.textContent = 'Pause';
+        icon.innerHTML = '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
+    } else {
+        label.textContent = state.sessions.length > 0 ? 'Continue' : 'Start';
+        icon.innerHTML = '<polygon points="5 3 19 12 5 21 5 3"/>';
+    }
 
-                    // History record for that day
-                    const rec = state.history[key];
-                    // If exists and met
-                    if(rec && rec.met){
-                        count++;
-                        // Moves back one day
-                        idx -= 1;
-                    }
-                    // Breaks when not met
-                    else{
-                        break;
-                    }
-                }
-                return count;
-            };
+    // Sessions
+    const count = state.sessions.length;
+    document.getElementById('sessionsLabel').textContent = count + ' session' + (count !== 1 ? 's' : '') + ' today';
 
-            // Recomputes best streak across all days (O(n) over history)
-            const recomputeBestStreak = () => {
-                // Sorts dates ascending
-                const keys = Object.keys(state.history).sort();
-                // Best streak seen
-                let best = 0;
-                // Current streak counter
-                let cur = 0;
-                // Prebvious date to check continuity
-                let prev = null;
-                // For each date
-                for(const k of keys){
-                    // Record
-                    const rec = state.history[k];
-                    // Checks if this day directly follows the previous day (timezone-safe)
-                    const contiguous = prev && (dayIndex(k) - dayIndex(prev) === 1);
-                    // Resets when gap exists
-                    if(!contiguous) cur = 0;
-                    // Updates counters
-                    if(rec.met){
-                        cur++;
-                        best = Math.max(best, cur);
-                    }
-                    else{
-                        cur = 0;
-                    }
-                    // Tracks previous
-                    prev = k;
-                }
-                // Stores best
-                state.bestStreak = best;
-                saveState();
-            };
+    // Status pill
+    const pill = document.getElementById('statusPill');
+    const met  = elapsed >= goalSecs;
+    pill.className = 'pill';
+    if (elapsed === 0 && state.sessions.length === 0) {
+        pill.textContent = 'Not started';
+    } else if (met) {
+        pill.textContent = 'Goal met';
+        pill.className += ' status-met';
+    } else {
+        pill.textContent = 'Working';
+        pill.className += ' status-working';
+    }
 
-            // Renders history table and streak numbers
-            const renderHistoryAndStreaks = () => {
-                // Renders streak digits
-                streakCurrent.textContent = String(currentStreak());
-                streakBest.textContent = String(state.bestStreak || 0);
+    // Sync label
+    const s = loadSettings();
+    document.getElementById('syncLabel').textContent = (s.mode === 'notion_local' && s.token && s.dbId) ? 'Notion sync on' : 'Local only';
 
-                // Builds a small HTML table for history (most recent first)
-                // [date, record] pairs
-                const rows = Object.entries(state.history)
-                // Sort by date desc
-                .sort((a, b) => b[0].localeCompare(a[0]))
-                // Limits to last 30 entries
-                .slice(0, 30)
-                // Maps to table rows
-                .map(([date, rec]) => {
-                    // Color class
-                    const cls = rec.met ? "ok" : (rec.minutes > 0 ? "warn" : "neg");
-                    return `<tr>
-                        <td>${date}</td>
-                        <td>${rec.minutes} min / ${rec.goalMins}</td>
-                        <td class="${cls}">${rec.met ? "Met" : (rec.minutes>0 ? "Missed" : "—")}</td>
-                    </tr>`;
-                }).join(""); // Joins to single HTML string
-                // If there is no history, shows placeholder
-                const table = rows ? `<table><thead><tr><th>Date</th><th>Minutes</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>` : `<div class="muted" style="padding:8px 10px;">No history yet. Press “Finish Day” to log your work.</div>`;
-                // Injects into container
-                historyBox.innerHTML = table;
-            };
+    // Goal input
+    document.getElementById('goalInput').value = state.goalMins;
 
-            // Event wiring
-            // Toggles start/pause on click
-            btnStartPause.addEventListener("click", () => {
-                // Start or pause based on current state
-                ticking ? pauseTimer() : startTimer();
-            });
-            // Wires reset button
-            btnReset.addEventListener("click", resetToday);
-            // Wire finish-day button
-            btnFinishDay.addEventListener("click", finishDay);
-            // Persists goal when changed
-            inputGoal.addEventListener("change", () => {
-                // Parses value
-                const v = Number(inputGoal.value || 0);
-                // Clamps to >= 1 minute
-                state.goalMins = Math.max(1, Math.floor(v));
-                saveState();
-                render(); 
-            });
+    // Streaks
+    document.getElementById('currentStreak').textContent = currentStreak() + ' days';
+    document.getElementById('bestStreak').textContent    = (state.bestStreak || 0) + ' days';
 
-            // Settings: load/save
-            const SETTINGS_KEY = "focusTimerSettings.v1";
+    renderHistory();
+};
 
-            function loadSettings(){
-                try{
-                    return JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}");
-                }
-                catch{
-                    return {};
-                }
-            }
+function renderHistory() {
+    const container = document.getElementById('historyContainer');
+    const entries = Object.entries(state.history).sort((a, b) => b[0].localeCompare(a[0])).slice(0, 30);
+    if (entries.length === 0) {
+        container.innerHTML = '<div class="history-empty">No history yet. Finish your first day to start tracking!</div>';
+        return;
+    }
+    const rows = entries.map(([date, rec]) => `
+        <tr>
+          <td>${date}</td>
+          <td>${rec.minutes} / ${rec.goalMins || rec.goal || '—'}</td>
+          <td><span class="status-badge ${rec.met ? 'met' : 'incomplete'}">${rec.met ? '✓ Met' : 'Incomplete'}</span></td>
+        </tr>`).join('');
+    container.innerHTML = `<div class="history-table-wrap"><table><thead><tr><th>Date</th><th>Minutes / Goal</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
 
-            function saveSettings(s){
-                localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
-            }
+// ── Collapsibles ───────────────────────────────────────────
+function setupCollapsible(triggerId, bodyId, chevronId) {
+    let open = false;
+    document.getElementById(triggerId).addEventListener('click', () => {
+        open = !open;
+        document.getElementById(bodyId).classList.toggle('open', open);
+        document.getElementById(chevronId).style.transform = open ? 'rotate(180deg)' : '';
+    });
+}
+setupCollapsible('dataToggle',   'dataBody',   'dataChevron');
+setupCollapsible('notionToggle', 'notionBody', 'notionChevron');
 
-            // Reads UI inputs and persists to SETTINGS_KEY
-            function saveNotionSettingsUI(){
-                const mode   = document.getElementById("syncMode").value;
-                const token  = document.getElementById("notionTokenInput").value.trim();
-                const dbId   = document.getElementById("notionDBInput").value.trim();
-                const pill   = document.getElementById("settingsStatus");
+// ── Event wiring ───────────────────────────────────────────
+document.getElementById('startPauseBtn').addEventListener('click', () => { ticking ? pauseTimer() : startTimer(); });
+document.getElementById('resetBtn').addEventListener('click', resetToday);
+document.getElementById('finishDayBtn').addEventListener('click', finishDay);
+document.getElementById('goalInput').addEventListener('change', () => {
+    state.goalMins = Math.max(1, Math.floor(Number(document.getElementById('goalInput').value) || 1));
+    saveState();
+    render();
+});
 
-                if(mode === "notion_local" && (!token || !dbId)){
-                    pill.textContent = "Status: token and database ID are both required";
-                    pill.style.borderColor = "var(--danger)";
-                    return;
-                }
+// ── Export / Import ────────────────────────────────────────
+document.getElementById('exportBtn').addEventListener('click', () => {
+    document.getElementById('dataTextarea').value = JSON.stringify(state, null, 2);
+    const s = document.getElementById('dataStatus');
+    s.textContent = 'Exported successfully';
+    s.style.color = 'var(--success)';
+    setTimeout(() => s.textContent = '', 3000);
+});
 
-                saveSettings({ mode, token, dbId });
-                pill.style.borderColor = "var(--accent)";
-                pill.textContent = mode === "notion_local" ? "Status: saved — Notion sync enabled" : "Status: saved — local only";
-            }
+document.getElementById('importBtn').addEventListener('click', () => {
+    const statusEl = document.getElementById('dataStatus');
+    const fail = msg => { statusEl.textContent = msg; statusEl.style.color = '#dc2626'; };
+    let parsed;
+    try { parsed = JSON.parse(document.getElementById('dataTextarea').value.trim()); }
+    catch { fail('Import failed: invalid JSON'); return; }
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) { fail('Import failed: top-level must be an object'); return; }
+    if ('goalMins'   in parsed && (typeof parsed.goalMins !== 'number' || parsed.goalMins < 1))                               { fail('Import failed: invalid goalMins'); return; }
+    if ('sessions'   in parsed && !Array.isArray(parsed.sessions))                                                            { fail('Import failed: sessions must be an array'); return; }
+    if ('history'    in parsed && (typeof parsed.history !== 'object' || Array.isArray(parsed.history) || !parsed.history))   { fail('Import failed: history must be an object'); return; }
+    if ('bestStreak' in parsed && typeof parsed.bestStreak !== 'number')                                                      { fail('Import failed: invalid bestStreak'); return; }
+    parsed.goalMins ??= 120; parsed.sessions ??= []; parsed.history ??= {}; parsed.bestStreak ??= 0; parsed.lastOpened ??= todayKey();
+    state = parsed;
+    saveState(); recomputeBestStreak(); render();
+    statusEl.textContent = 'Imported successfully';
+    statusEl.style.color = 'var(--success)';
+    setTimeout(() => statusEl.textContent = '', 3000);
+});
 
-            // Writes persisted settings back into the UI inputs at boot
-            function hydrateSettingsUI(){
-                const s = loadSettings();
-                document.getElementById("syncMode").value         = s.mode  || "none";
-                document.getElementById("notionTokenInput").value = s.token || "";
-                document.getElementById("notionDBInput").value    = s.dbId  || "";
+// ── Notion settings UI ─────────────────────────────────────
+document.getElementById('syncMode').addEventListener('change', e => {
+    const on = e.target.value === 'notion_local';
+    document.getElementById('notionFields').style.display = on ? 'block' : 'none';
+    document.getElementById('notionProps').style.display  = on ? 'block' : 'none';
+});
 
-                const pill = document.getElementById("settingsStatus");
-                if(s.mode === "notion_local"){
-                    const ok = !!s.token && !!s.dbId;
-                    pill.textContent    = ok ? "Status: Notion sync configured" : "Status: incomplete — token or DB ID missing";
-                    pill.style.borderColor = ok ? "var(--accent)" : "var(--danger)";
-                } else {
-                    pill.textContent = "Status: local only";
-                }
-            }
+document.getElementById('saveSettingsBtn').addEventListener('click', () => {
+    const mode  = document.getElementById('syncMode').value;
+    const token = document.getElementById('notionTokenInput').value.trim();
+    const dbId  = document.getElementById('notionDBInput').value.trim();
+    const pill  = document.getElementById('settingsStatus');
+    if (mode === 'notion_local' && (!token || !dbId)) {
+        pill.innerHTML = '<span style="color:#dc2626;font-size:13px;">Token and database ID are both required</span>';
+        return;
+    }
+    settings.mode = mode; settings.token = token; settings.dbId = dbId;
+    saveSettings(settings);
+    pill.innerHTML = '<span class="success-badge">Settings saved</span>';
+    render();
+    setTimeout(() => pill.innerHTML = '', 2500);
+});
 
-            // Wire settings save button and hydrate inputs at boot
-            document.getElementById("saveSettingsBtn").addEventListener("click", saveNotionSettingsUI);
-            hydrateSettingsUI();
+// ── Init ───────────────────────────────────────────────────
+applyTheme();
+buildPaletteGrid();
 
-            // Export / Import
-            const btnExport = document.getElementById("exportBtn");
-            const btnImport = document.getElementById("importBtn");
-            const dataBox   = document.getElementById("dataBox");
-            const dataStatus = document.getElementById("dataStatus");
+if ((settings.themeMode || 'light') === 'dark') {
+    document.getElementById('darkModeBtn').classList.add('active');
+    document.getElementById('lightModeBtn').classList.remove('active');
+}
 
-            btnExport.addEventListener("click", () => {
-                // Pretty-print so the user can read/edit the export
-                dataBox.value = JSON.stringify(state, null, 2);
-                dataStatus.textContent = "Status: exported";
-            });
+document.getElementById('syncMode').value        = settings.mode  || 'none';
+document.getElementById('notionTokenInput').value = settings.token || '';
+document.getElementById('notionDBInput').value    = settings.dbId  || '';
+if (settings.mode === 'notion_local') {
+    document.getElementById('notionFields').style.display = 'block';
+    document.getElementById('notionProps').style.display  = 'block';
+}
 
-            btnImport.addEventListener("click", () => {
-                // 1. Parse
-                let parsed;
-                try {
-                    parsed = JSON.parse(dataBox.value.trim());
-                } catch(e) {
-                    dataStatus.textContent = "Status: invalid JSON — check syntax";
-                    return;
-                }
-
-                // 2. Must be a plain object
-                if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-                    dataStatus.textContent = "Status: invalid — top-level must be an object";
-                    return;
-                }
-
-                // 3. Validate known fields if present (type-checks only; unknown fields are ignored)
-                if ("goalMins" in parsed && (typeof parsed.goalMins !== "number" || parsed.goalMins < 1)) {
-                    dataStatus.textContent = "Status: invalid — goalMins must be a positive number";
-                    return;
-                }
-                if ("sessions" in parsed && !Array.isArray(parsed.sessions)) {
-                    dataStatus.textContent = "Status: invalid — sessions must be an array";
-                    return;
-                }
-                if ("history" in parsed && (typeof parsed.history !== "object" || Array.isArray(parsed.history) || parsed.history === null)) {
-                    dataStatus.textContent = "Status: invalid — history must be an object";
-                    return;
-                }
-                if ("bestStreak" in parsed && typeof parsed.bestStreak !== "number") {
-                    dataStatus.textContent = "Status: invalid — bestStreak must be a number";
-                    return;
-                }
-
-                // 4. Apply defaults for any missing optional fields (backward-compat)
-                parsed.goalMins   ??= 120;
-                parsed.sessions   ??= [];
-                parsed.history    ??= {};
-                parsed.bestStreak ??= 0;
-                parsed.lastOpened ??= todayKey();
-
-                // 5. Commit — only overwrites STORE_KEY, no other localStorage keys touched
-                state = parsed;
-                saveState();
-                recomputeBestStreak();
-                render();
-                dataStatus.textContent = "Status: imported successfully";
-            });
-
-            // Theme
-            const THEME_KEY = "focusTimer.theme";
-
-            const applyTheme = (t) => {
-                if(t) document.documentElement.setAttribute("data-theme", t);
-                else  document.documentElement.removeAttribute("data-theme");
-                document.querySelectorAll(".swatch").forEach(s =>
-                    s.classList.toggle("active", (s.dataset.theme || "") === (t || ""))
-                );
-            };
-
-            document.querySelectorAll(".swatch").forEach(s => {
-                s.addEventListener("click", () => {
-                    const t = s.dataset.theme || "";
-                    localStorage.setItem(THEME_KEY, t);
-                    applyTheme(t);
-                });
-            });
-
-            // Apply saved theme before first render to avoid flash
-            applyTheme(localStorage.getItem(THEME_KEY) || "");
-
-            // Initial boot
-            // Initializes best streak
-            recomputeBestStreak();
-            // First render
-            render();
-          </script>
-    </body>
+recomputeBestStreak();
+render();
+</script>
+</body>
 </html>
