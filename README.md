@@ -9,12 +9,12 @@ Count up toward a daily goal, finish your day with one click, and keep your stre
 
 ### What it does
 
-- **Timer** — counts up from zero toward your daily goal (default: 2 hours)
-- **Elapsed / Remaining / Overtime** — three live displays so you always know where you stand
-- **Finish Day** — records your total focus time, updates your streak, and resets for tomorrow
-- **Streaks** — tracks how many days in a row you've hit your goal
-- **History** — a scrollable table of your last 30 days
-- **Backup** — export your data as a file and import it on another device
+- **Timer** - counts up from zero toward your daily goal (default: 2 hours)
+- **Elapsed / Remaining / Overtime** - three live displays so you always know where you stand
+- **Finish Day** - records your total focus time, updates your streak, and resets for tomorrow
+- **Streaks** - tracks how many days in a row you've hit your goal
+- **History** - a scrollable table of your last 30 days
+- **Backup** - export your data as a file and import it on another device
 
 ### Controls
 
@@ -39,7 +39,7 @@ All your timer data is saved in **this browser** — nothing is sent anywhere un
 
 When you connect Notion, FocusUp saves a record to your Notion database every time you click **Finish Day**. Here's what happens:
 
-1. You click **Finish Day** — your data is saved locally first, so nothing is ever lost
+1. You click **Finish Day** - your data is saved locally first, so nothing is ever lost
 2. FocusUp sends the day's summary to Notion in the background
 3. A new row appears in your chosen Notion database with the date, minutes focused, your goal, and whether you met it
 4. If you click Finish Day again for the same day (e.g. to correct a mistake), the existing row is updated rather than duplicated
@@ -49,8 +49,8 @@ Notion sync is completely optional. The timer works just as well without it.
 ### Connecting Notion
 
 1. Open the **Notion Sync** section at the bottom of the app
-2. Click **Connect Notion** — you'll be taken to Notion to approve the connection
-3. During sign-in, Notion will ask which pages FocusUp can access — select at least one database
+2. Click **Connect Notion**, you'll be taken to Notion to approve the connection
+3. During sign-in, Notion will ask which pages FocusUp can access, select at least one database
 4. After approving, you'll be returned to FocusUp
 5. Click **Show my Notion databases** and choose where your logs should go
 
@@ -63,14 +63,14 @@ Your Notion database needs these four columns (exact names, any order):
 | Goal | Number |
 | Met | Checkbox |
 
-FocusUp fills these in automatically — you never need to edit them by hand.
+FocusUp fills these in automatically, you never need to edit them by hand.
 
 ### Embedding in Notion
 
 1. Host the app at a public HTTPS URL (see the developer section below for options)
 2. In a Notion page, type `/embed` and press Enter
 3. Paste your hosted URL and click **Embed link**
-4. Resize the block — 600 px tall is a good starting point
+4. Resize the block, 600 px tall is a good starting point
 
 > **Note:** Your timer data is stored in the browser the Notion app runs in, not in Notion itself. Each browser or device has its own independent data.
 
@@ -171,7 +171,7 @@ When FocusUp is embedded in a Notion page as an iframe, browsers apply cross-sit
 
 The **Connect Notion** flow opens a new browser tab (not an iframe) so it works correctly. But status checks and sync calls made from inside the embed may be blocked depending on the browser.
 
-If sync stops working after embedding, open FocusUp directly in its own tab — everything will work there. See `backend/.env.example` for a full explanation and mitigation options.
+If sync stops working after embedding, open FocusUp directly in its own tab, everything will work there. See `backend/.env.example` for a full explanation and mitigation options.
 
 ---
 
