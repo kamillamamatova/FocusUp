@@ -36,6 +36,11 @@
             .warn{ color: #fbbf24; font-weight: 700;}
             .neg{ color: #60a5fa; font-weight: 700;}
             .footer{ margin-top: 10px; color: var(--muted); font-size: 12px;}
+            select{ padding: 8px 10px; border-radius: 10px; border: 1px solid #1f2937; background: #0b1320; color: var(--text); cursor: pointer;}
+            input[type="text"], input[type="password"]{ padding: 10px 12px; border-radius: 10px; border: 1px solid #1f2937; background: #0b1320; color: var(--text); width: 100%;}
+            .settings-row{ display: flex; flex-direction: column; gap: 10px; margin-top: 10px;}
+            .settings-row label{ display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted);}
+            .warn-box{ background: #2a1a00; border: 1px solid #78350f; border-radius: 10px; padding: 10px 12px; font-size: 12px; color: #fbbf24; margin-top: 10px;}
             @media(max-width: 720px){ .grid{ grid-template-columns: 1fr; } .big{ font-size: 38px;}}
            </style>
     </head>
@@ -82,6 +87,8 @@
                              <span id = "sessionsPill" class = "pill">Sessions today: 0</span> 
                              <!-- Status pill that flips when goal is met -->
                               <span id = "statusPill" class = "pill">Status: working...</span>
+                              <!-- Notion sync status (shown only after Finish Day when sync is configured) -->
+                              <span id = "syncStatus" class = "pill" style = "display:none;"></span>
                     </div>
                     
                     <!-- Secondary grid: streak info + history table -->
@@ -124,6 +131,43 @@
                 <div style="margin-top:10px;">
                     <textarea id="dataBox" rows="6" style="width:100%;" placeholder="Export will appear here. Paste export JSON here to import."></textarea>
                     <div class="footer">Pro tip: This exports/imports the localStorage key <span class="pill">focusTimer.v1</span>.</div>
+                </div>
+            </details>
+            <!-- Notion sync settings panel -->
+            <details class="block" style="margin-top:12px;">
+                <summary class="label" style="cursor:pointer;">Notion Sync (optional)</summary>
+                <div class="warn-box">
+                    Personal use only: your Notion integration token is stored in this browser's localStorage in plain text.
+                    Do not use this on a shared or public computer.
+                </div>
+                <div class="settings-row">
+                    <label>
+                        Sync mode
+                        <select id="syncMode">
+                            <option value="none">None — local only</option>
+                            <option value="notion_local">Notion (client-side, personal use)</option>
+                        </select>
+                    </label>
+                    <label>
+                        Notion integration token
+                        <input id="notionTokenInput" type="password" placeholder="secret_..." autocomplete="off">
+                    </label>
+                    <label>
+                        Notion database ID
+                        <input id="notionDBInput" type="text" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" autocomplete="off">
+                    </label>
+                    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                        <button id="saveSettingsBtn" class="primary">Save Settings</button>
+                        <span id="settingsStatus" class="pill">Status: not saved</span>
+                    </div>
+                    <div class="footer">
+                        Your Notion database must have these property names exactly:
+                        <span class="pill">Date</span> (date),
+                        <span class="pill">Minutes</span> (number),
+                        <span class="pill">Goal</span> (number),
+                        <span class="pill">Met</span> (checkbox).
+                        Get your token at notion.so/my-integrations — share the database with your integration.
+                    </div>
                 </div>
             </details>
         </div>
@@ -388,57 +432,58 @@
                 renderHistoryAndStreaks();
             };
 
-            // Sync via Notion (token stored in this browser)
+            // Sync via Notion (token stored in this browser — personal use only)
+            // Returns { ok: bool, message: string } or null if sync is not configured.
             async function syncFinishToNotion({ date, minutes, goal, met }){
-                // Loads settings object from localStorage (mode, token, dbId, etc.)
                 const s = loadSettings();
-
-                // Only runs if the user chose "notion_local" mode and has both a token + dbId
-                if(s.mode !== "notion_local" || !s.token || !s.dbId) return;
+                // Only runs when notion_local mode is enabled with both credentials
+                if(s.mode !== "notion_local" || !s.token || !s.dbId) return null;
 
                 try{
-                    // Calls Notion API to create a new row (page) in the database
                     const res = await fetch("https://api.notion.com/v1/pages", {
                         method: "POST",
                         headers: {
-                            // Uses the saved Notion integration token
                             "Authorization": `Bearer ${s.token}`,
-                            // Notion requires an API version
                             "Notion-Version": "2022-06-28",
-                            // Tells Notion that JSON is being sent
                             "Content-Type": "application/json"
                         },
-                        // JSON body is the new page in the target database with properties
                         body: JSON.stringify({
-                            // Which database to insert into
                             parent: { database_id: s.dbId },
                             properties: {
-                                // Each key here must match the column names in the Notion database
-                                // e.g., 2025-09-03
-                                "Date": {date: {start: date}},
-                                // Total study minutes
-                                "Minutes": {number: minutes},
-                                // Goal minutes
-                                "Goal": {number: goal},
-                                // True/false
-                                "Met": {checkbox: met}
+                                "Date":    { date:     { start: date } },
+                                "Minutes": { number:   minutes },
+                                "Goal":    { number:   goal },
+                                "Met":     { checkbox: met }
                             }
                         }),
-                        // Allows request to continue even if the tab closes
                         keepalive: true
                     });
 
-                    // If Notion responded with an error status, logs a warning with details
-                    if(!res.ok) console.warn("Notion sync failed:", await res.text());
+                    if(res.ok){
+                        return { ok: true, message: "Synced to Notion" };
+                    }
+
+                    // Parse error body for specific guidance
+                    const body = await res.text().catch(() => "");
+                    if(res.status === 401){
+                        return { ok: false, message: "Sync failed: invalid token — check your integration token" };
+                    }
+                    if(res.status === 404){
+                        return { ok: false, message: "Sync failed: database not found — check the ID and share the DB with your integration" };
+                    }
+                    if(res.status === 400 || body.toLowerCase().includes("property")){
+                        return { ok: false, message: "Sync failed: property name mismatch — database needs Date, Minutes, Goal, Met columns" };
+                    }
+                    return { ok: false, message: `Sync failed: HTTP ${res.status}` };
                 }
                 catch(e){
-                    console.warn("Notion sync error:", e);
+                    return { ok: false, message: "Sync failed: network error" };
                 }
-            };
+            }
 
             // History and Streaks
-            // Finish Day logs minutes and updates streaks
-            const finishDay = () => {
+            // Finish Day logs minutes locally, then attempts optional Notion sync
+            const finishDay = async () => {
                 // Pauses first if running
                 if(ticking) pauseTimer();
                 // Today YYYY-MM-DD
@@ -449,16 +494,31 @@
                 const goal = Math.max(1, Math.floor(state.goalMins));
                 // Goal met flag
                 const met = mins >= goal;
-                // Writes history entry
-                state.history[date] = { minutes: mins, goalMins: goal, met};
-                // Clears sessions for a fresh next start
+
+                // --- Local save always happens first, unconditionally ---
+                state.history[date] = { minutes: mins, goalMins: goal, met };
                 state.sessions = [];
                 saveState(state);
-                // Recomputes best streak record
                 recomputeBestStreak();
-                // Alert
-                alert(`Logged ${mins} min for ${date}${met ? " (goal, met)" : ""}.`);  
+                alert(`Logged ${mins} min for ${date}${met ? " — goal met!" : ""}.`);
                 render();
+
+                // --- Optional Notion sync (does not affect local data on failure) ---
+                const syncStatusEl = document.getElementById("syncStatus");
+                const s = loadSettings();
+                if(s.mode === "notion_local" && s.token && s.dbId){
+                    syncStatusEl.style.display = "";
+                    syncStatusEl.textContent = "Syncing to Notion...";
+                    syncStatusEl.style.borderColor = "#1f2937";
+
+                    const result = await syncFinishToNotion({ date, minutes: mins, goal, met });
+                    if(result){
+                        syncStatusEl.textContent = result.message;
+                        syncStatusEl.style.borderColor = result.ok ? "var(--accent)" : "var(--danger)";
+                    }
+                } else {
+                    syncStatusEl.style.display = "none";
+                }
             };
 
             // Computes current streak (consecutive met days up to today)
@@ -592,17 +652,44 @@
                 localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
             }
 
-            // Minimal validity check (no settings UI yet; Notion sync deferred)
-            function settingsHealth(){
-                const s = loadSettings();
-                if(s.mode === "notion_local"){
-                    return(!!s.token && !!s.dbId) ? "connected" : "incomplete";
+            // Reads UI inputs and persists to SETTINGS_KEY
+            function saveNotionSettingsUI(){
+                const mode   = document.getElementById("syncMode").value;
+                const token  = document.getElementById("notionTokenInput").value.trim();
+                const dbId   = document.getElementById("notionDBInput").value.trim();
+                const pill   = document.getElementById("settingsStatus");
+
+                if(mode === "notion_local" && (!token || !dbId)){
+                    pill.textContent = "Status: token and database ID are both required";
+                    pill.style.borderColor = "var(--danger)";
+                    return;
                 }
-                if(s.mode === "server"){
-                    return(!!s.apiUrl) ? "connected" : "incomplete";
-                }
-                return "local-only";
+
+                saveSettings({ mode, token, dbId });
+                pill.style.borderColor = "var(--accent)";
+                pill.textContent = mode === "notion_local" ? "Status: saved — Notion sync enabled" : "Status: saved — local only";
             }
+
+            // Writes persisted settings back into the UI inputs at boot
+            function hydrateSettingsUI(){
+                const s = loadSettings();
+                document.getElementById("syncMode").value         = s.mode  || "none";
+                document.getElementById("notionTokenInput").value = s.token || "";
+                document.getElementById("notionDBInput").value    = s.dbId  || "";
+
+                const pill = document.getElementById("settingsStatus");
+                if(s.mode === "notion_local"){
+                    const ok = !!s.token && !!s.dbId;
+                    pill.textContent    = ok ? "Status: Notion sync configured" : "Status: incomplete — token or DB ID missing";
+                    pill.style.borderColor = ok ? "var(--accent)" : "var(--danger)";
+                } else {
+                    pill.textContent = "Status: local only";
+                }
+            }
+
+            // Wire settings save button and hydrate inputs at boot
+            document.getElementById("saveSettingsBtn").addEventListener("click", saveNotionSettingsUI);
+            hydrateSettingsUI();
 
             // Export / Import
             const btnExport = document.getElementById("exportBtn");
