@@ -611,26 +611,58 @@
             const dataStatus = document.getElementById("dataStatus");
 
             btnExport.addEventListener("click", () => {
-                dataBox.value = localStorage.getItem(STORE_KEY) || "{}";
+                // Pretty-print so the user can read/edit the export
+                dataBox.value = JSON.stringify(state, null, 2);
                 dataStatus.textContent = "Status: exported";
             });
 
             btnImport.addEventListener("click", () => {
+                // 1. Parse
+                let parsed;
                 try {
-                    const parsed = JSON.parse(dataBox.value);
-                    state = parsed;
-                    state.goalMins  ??= 120;
-                    state.sessions  ??= [];
-                    state.history   ??= {};
-                    state.bestStreak ??= 0;
-                    state.lastOpened ??= todayKey();
-                    saveState();
-                    recomputeBestStreak();
-                    render();
-                    dataStatus.textContent = "Status: imported";
+                    parsed = JSON.parse(dataBox.value.trim());
                 } catch(e) {
-                    dataStatus.textContent = "Status: invalid JSON";
+                    dataStatus.textContent = "Status: invalid JSON — check syntax";
+                    return;
                 }
+
+                // 2. Must be a plain object
+                if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+                    dataStatus.textContent = "Status: invalid — top-level must be an object";
+                    return;
+                }
+
+                // 3. Validate known fields if present (type-checks only; unknown fields are ignored)
+                if ("goalMins" in parsed && (typeof parsed.goalMins !== "number" || parsed.goalMins < 1)) {
+                    dataStatus.textContent = "Status: invalid — goalMins must be a positive number";
+                    return;
+                }
+                if ("sessions" in parsed && !Array.isArray(parsed.sessions)) {
+                    dataStatus.textContent = "Status: invalid — sessions must be an array";
+                    return;
+                }
+                if ("history" in parsed && (typeof parsed.history !== "object" || Array.isArray(parsed.history) || parsed.history === null)) {
+                    dataStatus.textContent = "Status: invalid — history must be an object";
+                    return;
+                }
+                if ("bestStreak" in parsed && typeof parsed.bestStreak !== "number") {
+                    dataStatus.textContent = "Status: invalid — bestStreak must be a number";
+                    return;
+                }
+
+                // 4. Apply defaults for any missing optional fields (backward-compat)
+                parsed.goalMins   ??= 120;
+                parsed.sessions   ??= [];
+                parsed.history    ??= {};
+                parsed.bestStreak ??= 0;
+                parsed.lastOpened ??= todayKey();
+
+                // 5. Commit — only overwrites STORE_KEY, no other localStorage keys touched
+                state = parsed;
+                saveState();
+                recomputeBestStreak();
+                render();
+                dataStatus.textContent = "Status: imported successfully";
             });
 
             /* Fallback inline handler
