@@ -772,15 +772,46 @@ const finishDay = async () => {
     const mins = Math.round(calcElapsedSecs() / 60);
     const goal = Math.max(1, Math.floor(state.goalMins));
     const met  = mins >= goal;
-    // Local save — always first, unconditionally
+
+    // ── Local save — always first, unconditionally ──────────
     state.history[date] = { minutes: mins, goalMins: goal, met };
     state.sessions = [];
     saveState();
     recomputeBestStreak();
     alert(`Logged ${mins} min for ${date}${met ? ' — goal met!' : ''}.`);
     render();
-    // Notion sync — wired in the next pass via POST /api/sync
-    document.getElementById('syncStatus').style.display = 'none';
+
+    // ── Notion sync — fire only when fully configured ───────
+    const syncEl = document.getElementById('syncStatus');
+    if (notionStatus !== 'connected' || !notionSelectedDb) {
+        syncEl.style.display = 'none';
+        return;
+    }
+
+    syncEl.style.display = '';
+    syncEl.textContent   = 'Syncing\u2026';
+    syncEl.className     = 'pill';
+
+    try {
+        const res  = await fetch(`${BACKEND_URL}/api/sync`, {
+            method:      'POST',
+            credentials: 'include',
+            headers:     { 'Content-Type': 'application/json' },
+            body:        JSON.stringify({ date, minutes: mins, goal, met }),
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+            syncEl.textContent = data.action === 'updated' ? 'Notion entry updated' : 'Synced to Notion';
+            syncEl.className   = 'pill sync-ok';
+        } else {
+            syncEl.textContent = data.error || 'Sync failed';
+            syncEl.className   = 'pill sync-fail';
+        }
+    } catch {
+        syncEl.textContent = 'Sync failed — backend unreachable';
+        syncEl.className   = 'pill sync-fail';
+    }
 };
 
 // ── Render ─────────────────────────────────────────────────
