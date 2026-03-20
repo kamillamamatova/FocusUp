@@ -123,18 +123,14 @@
     .data-textarea:focus { box-shadow: 0 0 0 2px var(--primary); }
     .export-hint { font-size: 12px; color: var(--accent); margin-top: 10px; }
 
-    /* Notion */
-    .warning-box { background: var(--warning-bg); border: 1px solid var(--warning-border); border-radius: 12px; padding: 14px 16px; margin-bottom: 20px; font-size: 12px; color: var(--accent); }
-    .form-group { margin-bottom: 16px; }
-    .form-label { display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 6px; }
-    .form-input, .form-select { width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text); font-family: inherit; font-size: 14px; outline: none; transition: box-shadow 0.2s; }
-    .form-input:focus, .form-select:focus { box-shadow: 0 0 0 2px var(--primary); }
-    .notion-props { background: var(--success-bg); border: 1px solid var(--success-border); border-radius: 12px; padding: 14px 16px; margin-top: 16px; }
-    .notion-props p { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
-    .notion-props ul { font-size: 12px; color: var(--accent); list-style: none; padding-left: 8px; }
-    .notion-props li { margin-bottom: 2px; }
-    .save-row { display: flex; align-items: center; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
-    .success-badge { display: inline-block; padding: 4px 12px; border-radius: 50px; font-size: 12px; background: var(--success); color: white; }
+    /* Notion sync panel */
+    .notion-desc { font-size: 13px; color: var(--text-muted); margin-bottom: 14px; line-height: 1.6; }
+    .notion-desc-small { font-size: 12px; color: var(--accent); margin-top: 10px; line-height: 1.5; }
+    .notion-error-text { font-size: 13px; color: #dc2626; margin-bottom: 14px; line-height: 1.5; }
+    .notion-connected-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .notion-workspace-badge { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; background: var(--success-bg); border: 1px solid var(--success-border); border-radius: 50px; font-size: 13px; color: var(--success); font-weight: 500; }
+    .notion-workspace-badge svg { width: 14px; height: 14px; flex-shrink: 0; }
+    code { font-family: 'DM Mono', monospace; font-size: 11px; background: var(--input-bg); padding: 2px 6px; border-radius: 4px; color: var(--text); }
 
     /* Footer */
     .footer { text-align: center; margin-top: 20px; font-size: 12px; color: var(--accent); line-height: 1.8; }
@@ -292,43 +288,13 @@
     <div>
       <button type="button" class="collapsible-trigger" id="notionToggle" style="border-bottom:none;">
         <div class="collapsible-trigger-left">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
-          Notion Sync Settings
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          Notion Sync
         </div>
         <svg class="chevron" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="notionChevron"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div class="collapsible-body" id="notionBody" style="border-bottom:none;">
-        <div class="warning-box">&#9888;&#65039; Personal use only: your Notion integration token is stored in this browser&rsquo;s localStorage in plain text. Do not use on a shared or public computer.</div>
-        <div class="form-group">
-          <label class="form-label">Sync Mode</label>
-          <select class="form-select" id="syncMode">
-            <option value="none">None &mdash; local only</option>
-            <option value="notion_local">Notion (client-side, personal use)</option>
-          </select>
-        </div>
-        <div id="notionFields" style="display:none;">
-          <div class="form-group">
-            <label class="form-label">Notion Integration Token</label>
-            <input type="password" class="form-input" id="notionTokenInput" placeholder="secret_..." autocomplete="off" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Notion Database ID</label>
-            <input type="text" class="form-input" id="notionDBInput" placeholder="32-character database ID..." autocomplete="off" />
-          </div>
-        </div>
-        <div class="save-row">
-          <button type="button" class="btn btn-success" id="saveSettingsBtn" style="padding:8px 18px;font-size:13px;">Save Settings</button>
-          <span id="settingsStatus"></span>
-        </div>
-        <div class="notion-props" id="notionProps" style="display:none;">
-          <p>Your Notion database must have these property names exactly:</p>
-          <ul>
-            <li>&bull; Date (date)</li>
-            <li>&bull; Minutes (number)</li>
-            <li>&bull; Goal (number)</li>
-            <li>&bull; Met (checkbox)</li>
-          </ul>
-        </div>
+        <div id="notionSyncPanel"></div>
       </div>
     </div>
 
@@ -366,7 +332,17 @@ const dayIndex = key => {
     return Math.floor(Date.UTC(y, m - 1, d) / 86400000);
 };
 
-// ── Settings (theme + Notion — stored separately from app state) ──
+// ── Backend URL ────────────────────────────────────────────
+// Change this to your deployed backend URL before going to production.
+const BACKEND_URL = 'http://localhost:3001';
+
+// ── Notion connection state ────────────────────────────────
+// 'checking' | 'connected' | 'disconnected' | 'error' | 'unavailable'
+let notionStatus    = 'checking';
+let notionWorkspace = null;
+let notionErrorMsg  = null;
+
+// ── Settings (theme — stored separately from app state) ────
 const SETTINGS_KEY = 'focusTimerSettings.v1';
 function loadSettings() { try { return JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'); } catch { return {}; } }
 function saveSettings(s) { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); }
@@ -442,6 +418,95 @@ document.getElementById('darkModeBtn').addEventListener('click', () => {
     document.getElementById('lightModeBtn').classList.remove('active');
     saveSettings(settings);
 });
+
+// ── Notion OAuth UI ────────────────────────────────────────
+const NOTION_ERROR_LABELS = {
+    access_denied:         'You cancelled the Notion authorisation.',
+    missing_code:          'Authorisation failed — no code was returned. Please try again.',
+    token_exchange_failed: 'Could not complete sign-in with Notion. Please try again.',
+    network_error:         'A network error occurred during authorisation. Check your connection.',
+    storage_error:         'Sign-in succeeded but the token could not be saved. Please try again.',
+};
+const friendlyNotionError = code =>
+    NOTION_ERROR_LABELS[code] || `Authorisation failed (${code}). Please try again.`;
+
+async function checkNotionStatus() {
+    try {
+        const res = await fetch(`${BACKEND_URL}/api/auth/status`, {
+            credentials: 'include',
+            signal: AbortSignal.timeout(4000),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        notionStatus    = data.connected ? 'connected' : 'disconnected';
+        notionWorkspace = data.workspace_name || null;
+    } catch {
+        notionStatus = 'unavailable';
+    }
+    renderNotionSync();
+    render(); // refresh syncLabel pill
+}
+
+function renderNotionSync() {
+    const panel = document.getElementById('notionSyncPanel');
+    if (!panel) return;
+
+    if (notionStatus === 'checking') {
+        panel.innerHTML = `<p class="notion-desc">Checking connection&hellip;</p>`;
+        return;
+    }
+
+    if (notionStatus === 'unavailable') {
+        panel.innerHTML = `
+            <p class="notion-desc">Notion sync requires the backend server to be running. The timer works fully without it.</p>
+            <p class="notion-desc-small">Start the backend: <code>npm run backend:dev</code></p>`;
+        return;
+    }
+
+    if (notionStatus === 'connected') {
+        const label = notionWorkspace
+            ? `Connected to <strong>${notionWorkspace}</strong>`
+            : 'Connected to Notion';
+        panel.innerHTML = `
+            <div class="notion-connected-row">
+              <span class="notion-workspace-badge">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+                ${label}
+              </span>
+              <button type="button" class="btn btn-secondary" id="disconnectNotionBtn" style="padding:7px 16px;font-size:13px;">Disconnect</button>
+            </div>
+            <p class="notion-desc-small">Daily logs will sync automatically when you click Finish Day.</p>`;
+        document.getElementById('disconnectNotionBtn').addEventListener('click', disconnectNotion);
+        return;
+    }
+
+    // 'error' or 'disconnected'
+    const errorLine = notionStatus === 'error' && notionErrorMsg
+        ? `<p class="notion-error-text">${notionErrorMsg}</p>`
+        : '';
+    panel.innerHTML = `
+        ${errorLine}
+        <p class="notion-desc">Connect your Notion workspace to automatically sync daily focus logs.</p>
+        <button type="button" class="btn btn-primary" id="connectNotionBtn" style="gap:8px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          ${notionStatus === 'error' ? 'Try again' : 'Connect Notion'}
+        </button>`;
+    document.getElementById('connectNotionBtn').addEventListener('click', connectNotion);
+}
+
+function connectNotion() {
+    window.location.href = `${BACKEND_URL}/api/auth/notion`;
+}
+
+async function disconnectNotion() {
+    try {
+        await fetch(`${BACKEND_URL}/api/auth/logout`, { method: 'POST', credentials: 'include' });
+    } catch { /* network failure — still update local state */ }
+    notionStatus    = 'disconnected';
+    notionWorkspace = null;
+    renderNotionSync();
+    render();
+}
 
 // ── App state ──────────────────────────────────────────────
 const STORE_KEY = 'focusTimer.v1';
@@ -537,26 +602,6 @@ const recomputeBestStreak = () => {
     saveState();
 };
 
-// ── Notion sync ────────────────────────────────────────────
-async function syncFinishToNotion({ date, minutes, goal, met }) {
-    const s = loadSettings();
-    if (s.mode !== 'notion_local' || !s.token || !s.dbId) return null;
-    try {
-        const res = await fetch('https://api.notion.com/v1/pages', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${s.token}`, 'Notion-Version': '2022-06-28', 'Content-Type': 'application/json' },
-            body: JSON.stringify({ parent: { database_id: s.dbId }, properties: { 'Date': { date: { start: date } }, 'Minutes': { number: minutes }, 'Goal': { number: goal }, 'Met': { checkbox: met } } }),
-            keepalive: true
-        });
-        if (res.ok) return { ok: true, message: 'Synced to Notion' };
-        const body = await res.text().catch(() => '');
-        if (res.status === 401) return { ok: false, message: 'Sync failed: invalid token' };
-        if (res.status === 404) return { ok: false, message: 'Sync failed: database not found — check ID and share with integration' };
-        if (res.status === 400 || body.toLowerCase().includes('property')) return { ok: false, message: 'Sync failed: property name mismatch — needs Date, Minutes, Goal, Met' };
-        return { ok: false, message: `Sync failed: HTTP ${res.status}` };
-    } catch { return { ok: false, message: 'Sync failed: network error' }; }
-}
-
 // ── Finish Day ─────────────────────────────────────────────
 const finishDay = async () => {
     if (ticking) pauseTimer();
@@ -571,18 +616,8 @@ const finishDay = async () => {
     recomputeBestStreak();
     alert(`Logged ${mins} min for ${date}${met ? ' — goal met!' : ''}.`);
     render();
-    // Optional Notion sync
-    const syncEl = document.getElementById('syncStatus');
-    const s = loadSettings();
-    if (s.mode === 'notion_local' && s.token && s.dbId) {
-        syncEl.style.display = '';
-        syncEl.textContent = 'Syncing...';
-        syncEl.className = 'pill';
-        const result = await syncFinishToNotion({ date, minutes: mins, goal, met });
-        if (result) { syncEl.textContent = result.message; syncEl.className = 'pill ' + (result.ok ? 'sync-ok' : 'sync-fail'); }
-    } else {
-        syncEl.style.display = 'none';
-    }
+    // Notion sync — wired in the next pass via POST /api/sync
+    document.getElementById('syncStatus').style.display = 'none';
 };
 
 // ── Render ─────────────────────────────────────────────────
@@ -626,8 +661,10 @@ const render = () => {
     }
 
     // Sync label
-    const s = loadSettings();
-    document.getElementById('syncLabel').textContent = (s.mode === 'notion_local' && s.token && s.dbId) ? 'Notion sync on' : 'Local only';
+    document.getElementById('syncLabel').textContent =
+        notionStatus === 'connected'  ? (notionWorkspace ? `Notion: ${notionWorkspace}` : 'Notion connected') :
+        notionStatus === 'checking'   ? 'Checking\u2026' :
+        'Local only';
 
     // Goal input
     document.getElementById('goalInput').value = state.goalMins;
@@ -705,28 +742,6 @@ document.getElementById('importBtn').addEventListener('click', () => {
     setTimeout(() => statusEl.textContent = '', 3000);
 });
 
-// ── Notion settings UI ─────────────────────────────────────
-document.getElementById('syncMode').addEventListener('change', e => {
-    const on = e.target.value === 'notion_local';
-    document.getElementById('notionFields').style.display = on ? 'block' : 'none';
-    document.getElementById('notionProps').style.display  = on ? 'block' : 'none';
-});
-
-document.getElementById('saveSettingsBtn').addEventListener('click', () => {
-    const mode  = document.getElementById('syncMode').value;
-    const token = document.getElementById('notionTokenInput').value.trim();
-    const dbId  = document.getElementById('notionDBInput').value.trim();
-    const pill  = document.getElementById('settingsStatus');
-    if (mode === 'notion_local' && (!token || !dbId)) {
-        pill.innerHTML = '<span style="color:#dc2626;font-size:13px;">Token and database ID are both required</span>';
-        return;
-    }
-    settings.mode = mode; settings.token = token; settings.dbId = dbId;
-    saveSettings(settings);
-    pill.innerHTML = '<span class="success-badge">Settings saved</span>';
-    render();
-    setTimeout(() => pill.innerHTML = '', 2500);
-});
 
 // ── Init ───────────────────────────────────────────────────
 applyTheme();
@@ -737,16 +752,22 @@ if ((settings.themeMode || 'light') === 'dark') {
     document.getElementById('lightModeBtn').classList.remove('active');
 }
 
-document.getElementById('syncMode').value        = settings.mode  || 'none';
-document.getElementById('notionTokenInput').value = settings.token || '';
-document.getElementById('notionDBInput').value    = settings.dbId  || '';
-if (settings.mode === 'notion_local') {
-    document.getElementById('notionFields').style.display = 'block';
-    document.getElementById('notionProps').style.display  = 'block';
-}
-
 recomputeBestStreak();
 render();
+
+// Handle OAuth return — Notion redirects back with ?notion_connected or ?notion_error
+const _oauthParams = new URLSearchParams(location.search);
+if (_oauthParams.has('notion_error')) {
+    notionStatus  = 'error';
+    notionErrorMsg = friendlyNotionError(_oauthParams.get('notion_error'));
+    history.replaceState({}, '', location.pathname);
+} else if (_oauthParams.has('notion_connected')) {
+    // Clear the URL immediately; status confirmed by checkNotionStatus below
+    history.replaceState({}, '', location.pathname);
+}
+
+// Check auth status with backend (also renders notionSyncPanel)
+checkNotionStatus();
 </script>
 </body>
 </html>
