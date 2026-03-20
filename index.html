@@ -131,6 +131,20 @@
     .notion-workspace-badge { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; background: var(--success-bg); border: 1px solid var(--success-border); border-radius: 50px; font-size: 13px; color: var(--success); font-weight: 500; }
     .notion-workspace-badge svg { width: 14px; height: 14px; flex-shrink: 0; }
     code { font-family: 'DM Mono', monospace; font-size: 11px; background: var(--input-bg); padding: 2px 6px; border-radius: 4px; color: var(--text); }
+    /* Database picker */
+    .db-picker-section { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+    .db-picker-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+    .db-picker-hint { font-size: 12px; color: var(--accent); margin-bottom: 12px; line-height: 1.5; }
+    .db-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+    .db-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--border); background: var(--table-bg); cursor: pointer; text-align: left; font-family: inherit; transition: all 0.15s; width: 100%; }
+    .db-item:hover { background: var(--table-hover); border-color: var(--primary); }
+    .db-item.selected { background: var(--success-bg); border-color: var(--success-border); }
+    .db-item-icon { font-size: 16px; flex-shrink: 0; width: 20px; text-align: center; }
+    .db-item-name { font-size: 13px; color: var(--text); flex: 1; }
+    .db-item-check { width: 14px; height: 14px; color: var(--success); flex-shrink: 0; }
+    .db-selected-badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: var(--success-bg); border: 1px solid var(--success-border); border-radius: 10px; font-size: 13px; color: var(--text); }
+    .db-selected-badge .db-icon { font-size: 14px; }
+    .db-schema-note { font-size: 11px; color: var(--accent); margin-top: 10px; padding: 10px 12px; background: var(--input-bg); border-radius: 10px; line-height: 1.6; }
 
     /* Footer */
     .footer { text-align: center; margin-top: 20px; font-size: 12px; color: var(--accent); line-height: 1.8; }
@@ -341,6 +355,11 @@ const BACKEND_URL = 'http://localhost:3001';
 let notionStatus    = 'checking';
 let notionWorkspace = null;
 let notionErrorMsg  = null;
+// Database picker state
+let notionSelectedDb  = null; // { id, name } | null  — from /api/auth/status
+let notionDbList      = null; // null=not loaded | []  | Array<{id,name,icon}>
+let notionDbLoading   = false;
+let notionDbError     = null;
 
 // ── Settings (theme — stored separately from app state) ────
 const SETTINGS_KEY = 'focusTimerSettings.v1';
@@ -440,6 +459,9 @@ async function checkNotionStatus() {
         const data = await res.json();
         notionStatus    = data.connected ? 'connected' : 'disconnected';
         notionWorkspace = data.workspace_name || null;
+        notionSelectedDb = (data.selected_db_id && data.selected_db_name)
+            ? { id: data.selected_db_id, name: data.selected_db_name }
+            : null;
     } catch {
         notionStatus = 'unavailable';
     }
@@ -464,19 +486,21 @@ function renderNotionSync() {
     }
 
     if (notionStatus === 'connected') {
-        const label = notionWorkspace
+        const wsLabel = notionWorkspace
             ? `Connected to <strong>${notionWorkspace}</strong>`
             : 'Connected to Notion';
+        const dbSection = renderDbPickerHTML();
         panel.innerHTML = `
             <div class="notion-connected-row">
               <span class="notion-workspace-badge">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
-                ${label}
+                ${wsLabel}
               </span>
               <button type="button" class="btn btn-secondary" id="disconnectNotionBtn" style="padding:7px 16px;font-size:13px;">Disconnect</button>
             </div>
-            <p class="notion-desc-small">Daily logs will sync automatically when you click Finish Day.</p>`;
+            ${dbSection}`;
         document.getElementById('disconnectNotionBtn').addEventListener('click', disconnectNotion);
+        wireDbPickerEvents();
         return;
     }
 
@@ -493,6 +517,145 @@ function renderNotionSync() {
         </button>`;
     document.getElementById('connectNotionBtn').addEventListener('click', connectNotion);
 }
+
+function renderDbPickerHTML() {
+    const checkSVG = `<svg class="db-item-check" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>`;
+    const schemaNote = `<p class="db-schema-note">
+        The selected database should have these properties:<br>
+        <strong>Date</strong> (date) &nbsp;&bull;&nbsp; <strong>Minutes</strong> (number) &nbsp;&bull;&nbsp;
+        <strong>Goal</strong> (number) &nbsp;&bull;&nbsp; <strong>Met</strong> (checkbox)
+    </p>`;
+
+    // Already have a selected DB
+    if (notionSelectedDb) {
+        return `<div class="db-picker-section">
+            <div class="db-picker-title">Sync target</div>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px;">
+              <span class="db-selected-badge">
+                <span class="db-icon">&#128218;</span>
+                ${escapeHtml(notionSelectedDb.name)}
+              </span>
+              <button type="button" class="btn btn-secondary" id="changeDbBtn" style="padding:6px 14px;font-size:12px;">Change</button>
+            </div>
+            ${schemaNote}
+        </div>`;
+    }
+
+    // Loading
+    if (notionDbLoading) {
+        return `<div class="db-picker-section">
+            <div class="db-picker-title">Choose a database</div>
+            <p class="notion-desc" style="margin-top:8px;">Loading your databases&hellip;</p>
+        </div>`;
+    }
+
+    // Error loading databases
+    if (notionDbError) {
+        return `<div class="db-picker-section">
+            <div class="db-picker-title">Choose a database</div>
+            <p class="notion-error-text" style="margin-top:8px;">${escapeHtml(notionDbError)}</p>
+            <button type="button" class="btn btn-secondary" id="loadDbsBtn" style="padding:7px 16px;font-size:13px;">Try again</button>
+        </div>`;
+    }
+
+    // Databases loaded — show list
+    if (notionDbList !== null) {
+        if (notionDbList.length === 0) {
+            return `<div class="db-picker-section">
+                <div class="db-picker-title">Choose a database</div>
+                <p class="notion-desc" style="margin-top:8px;">No databases found. Make sure you granted FocusUp access to at least one database during authorisation.</p>
+                <button type="button" class="btn btn-secondary" id="reconnectBtn" style="padding:7px 16px;font-size:13px;margin-right:8px;">Re-authorise</button>
+                <button type="button" class="btn btn-secondary" id="loadDbsBtn" style="padding:7px 16px;font-size:13px;">Refresh</button>
+                ${schemaNote}
+            </div>`;
+        }
+        const items = notionDbList.map(db => `
+            <button type="button" class="db-item" data-db-id="${escapeAttr(db.id)}" data-db-name="${escapeAttr(db.name)}">
+              <span class="db-item-icon">${db.icon ? escapeHtml(db.icon) : '&#128218;'}</span>
+              <span class="db-item-name">${escapeHtml(db.name)}</span>
+            </button>`).join('');
+        return `<div class="db-picker-section">
+            <div class="db-picker-title">Choose a database</div>
+            <p class="db-picker-hint">Select the Notion database where FocusUp should write your daily logs.</p>
+            <div class="db-list">${items}</div>
+            ${schemaNote}
+        </div>`;
+    }
+
+    // Not yet loaded — show prompt
+    return `<div class="db-picker-section">
+        <div class="db-picker-title">Choose a database</div>
+        <p class="notion-desc" style="margin-top:8px;">Pick the Notion database where your daily focus logs will be saved.</p>
+        <button type="button" class="btn btn-secondary" id="loadDbsBtn" style="padding:7px 16px;font-size:13px;gap:8px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></svg>
+          Load my databases
+        </button>
+    </div>`;
+}
+
+function wireDbPickerEvents() {
+    document.getElementById('loadDbsBtn')?.addEventListener('click', loadDatabases);
+    document.getElementById('changeDbBtn')?.addEventListener('click', () => {
+        notionSelectedDb = null;
+        notionDbList     = null;
+        notionDbError    = null;
+        renderNotionSync();
+    });
+    document.getElementById('reconnectBtn')?.addEventListener('click', connectNotion);
+    document.querySelectorAll('.db-item').forEach(btn => {
+        btn.addEventListener('click', () => selectDatabase(btn.dataset.dbId, btn.dataset.dbName));
+    });
+}
+
+async function loadDatabases() {
+    notionDbLoading = true;
+    notionDbError   = null;
+    renderNotionSync();
+    try {
+        const res = await fetch(`${BACKEND_URL}/api/databases`, { credentials: 'include' });
+        const data = await res.json();
+        if (!res.ok) {
+            notionDbError = data.error || 'Could not load databases — please try again.';
+        } else {
+            notionDbList = data.databases || [];
+        }
+    } catch {
+        notionDbError = 'Could not reach the backend — make sure it is running.';
+    }
+    notionDbLoading = false;
+    renderNotionSync();
+}
+
+async function selectDatabase(dbId, dbName) {
+    // Optimistic UI update
+    notionSelectedDb = { id: dbId, name: dbName };
+    notionDbList     = null;
+    renderNotionSync();
+    try {
+        const res = await fetch(`${BACKEND_URL}/api/databases/select`, {
+            method:      'POST',
+            credentials: 'include',
+            headers:     { 'Content-Type': 'application/json' },
+            body:        JSON.stringify({ dbId, dbName }),
+        });
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            // Revert on failure
+            notionSelectedDb = null;
+            notionDbError    = data.error || 'Could not save your selection — please try again.';
+            renderNotionSync();
+        }
+    } catch {
+        notionSelectedDb = null;
+        notionDbError    = 'Could not reach the backend — make sure it is running.';
+        renderNotionSync();
+    }
+    render(); // update syncLabel
+}
+
+// Sanitisation helpers (no raw user strings into innerHTML unescaped)
+const escapeHtml  = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const escapeAttr  = s => s.replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
 function connectNotion() {
     window.location.href = `${BACKEND_URL}/api/auth/notion`;
@@ -662,8 +825,9 @@ const render = () => {
 
     // Sync label
     document.getElementById('syncLabel').textContent =
-        notionStatus === 'connected'  ? (notionWorkspace ? `Notion: ${notionWorkspace}` : 'Notion connected') :
-        notionStatus === 'checking'   ? 'Checking\u2026' :
+        notionStatus === 'connected' && notionSelectedDb ? `Syncing to: ${notionSelectedDb.name}` :
+        notionStatus === 'connected'                     ? 'Notion connected — pick a database' :
+        notionStatus === 'checking'                      ? 'Checking\u2026' :
         'Local only';
 
     // Goal input

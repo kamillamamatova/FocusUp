@@ -8,8 +8,9 @@ const cors    = require('cors');
 // Initialise DB before importing routes (creates schema on first run).
 const { close: closeDb } = require('./db');
 
-const authRouter = require('./routes/auth');
-const syncRouter = require('./routes/sync');
+const authRouter      = require('./routes/auth');
+const syncRouter      = require('./routes/sync');
+const databasesRouter = require('./routes/databases');
 
 // ── Validate required env vars at startup ─────────────────
 const REQUIRED = ['SESSION_SECRET', 'NOTION_CLIENT_ID', 'NOTION_CLIENT_SECRET', 'NOTION_REDIRECT_URI', 'FRONTEND_URL'];
@@ -62,8 +63,9 @@ app.use(session({
 }));
 
 // ── Routes ────────────────────────────────────────────────
-app.use('/api/auth', authRouter);
-app.use('/api/sync', syncRouter);
+app.use('/api/auth',      authRouter);
+app.use('/api/sync',      syncRouter);
+app.use('/api/databases', databasesRouter);
 
 app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -84,11 +86,13 @@ app.use((err, _req, res, _next) => {
 // ── Start ─────────────────────────────────────────────────
 const server = app.listen(PORT, () => {
     console.log(`FocusUp backend listening on http://localhost:${PORT}`);
-    console.log(`  Health:     GET  /api/health`);
-    console.log(`  OAuth:      GET  /api/auth/notion`);
-    console.log(`  Callback:   GET  /api/auth/notion/callback`);
-    console.log(`  Auth check: GET  /api/auth/status`);
-    console.log(`  Sync:       POST /api/sync`);
+    console.log(`  Health:       GET  /api/health`);
+    console.log(`  OAuth:        GET  /api/auth/notion`);
+    console.log(`  Callback:     GET  /api/auth/notion/callback`);
+    console.log(`  Auth check:   GET  /api/auth/status`);
+    console.log(`  List DBs:     GET  /api/databases`);
+    console.log(`  Select DB:    POST /api/databases/select`);
+    console.log(`  Sync:         POST /api/sync`);
 });
 
 // ── Graceful shutdown ─────────────────────────────────────

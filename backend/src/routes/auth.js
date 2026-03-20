@@ -134,9 +134,11 @@ router.get('/status', (req, res) => {
     }
 
     res.json({
-        connected:      true,
-        workspace_name: row.workspace_name || null,
-        workspace_icon: row.workspace_icon || null,
+        connected:        true,
+        workspace_name:   row.workspace_name   || null,
+        workspace_icon:   row.workspace_icon   || null,
+        selected_db_id:   row.selected_db_id   || null,
+        selected_db_name: row.selected_db_name || null,
     });
 });
 

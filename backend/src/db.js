@@ -28,17 +28,24 @@ db.pragma('journal_mode = WAL');
 
 db.exec(`
     CREATE TABLE IF NOT EXISTS notion_tokens (
-        session_id      TEXT    PRIMARY KEY,
-        access_token    TEXT    NOT NULL,
-        workspace_id    TEXT,
-        workspace_name  TEXT,
-        workspace_icon  TEXT,
-        bot_id          TEXT,
-        owner_type      TEXT,
-        created_at      INTEGER NOT NULL,
-        updated_at      INTEGER NOT NULL
+        session_id       TEXT    PRIMARY KEY,
+        access_token     TEXT    NOT NULL,
+        workspace_id     TEXT,
+        workspace_name   TEXT,
+        workspace_icon   TEXT,
+        bot_id           TEXT,
+        owner_type       TEXT,
+        selected_db_id   TEXT,
+        selected_db_name TEXT,
+        created_at       INTEGER NOT NULL,
+        updated_at       INTEGER NOT NULL
     )
 `);
+
+// Migration: add columns that may be missing in databases created before this version.
+for (const col of ['selected_db_id TEXT', 'selected_db_name TEXT']) {
+    try { db.exec(`ALTER TABLE notion_tokens ADD COLUMN ${col}`); } catch { /* column already exists */ }
+}
 
 // ── Public API ────────────────────────────────────────────
 
@@ -91,9 +98,23 @@ function deleteToken(sessionId) {
     db.prepare('DELETE FROM notion_tokens WHERE session_id = ?').run(sessionId);
 }
 
+/**
+ * Persist the user's chosen Notion database.
+ * @param {string} sessionId
+ * @param {string} dbId   — Notion database UUID
+ * @param {string} dbName — human-readable title
+ */
+function saveSelectedDb(sessionId, dbId, dbName) {
+    db.prepare(`
+        UPDATE notion_tokens
+        SET selected_db_id = ?, selected_db_name = ?, updated_at = ?
+        WHERE session_id = ?
+    `).run(dbId, dbName, Date.now(), sessionId);
+}
+
 /** Graceful shutdown — lets the process exit cleanly. */
 function close() {
     db.close();
 }
 
-module.exports = { saveToken, getToken, deleteToken, close };
+module.exports = { saveToken, getToken, deleteToken, saveSelectedDb, close };
