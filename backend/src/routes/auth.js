@@ -13,7 +13,7 @@
 
 const { randomBytes } = require('crypto');
 const router = require('express').Router();
-const { saveToken, getToken, deleteToken, saveClientToken, getTokenByClientToken, savePendingAuth, consumePendingAuth } = require('../db');
+const { saveToken, getToken, deleteToken, saveClientToken, getTokenByClientToken, savePendingAuth, consumePendingAuth, migrateGuestToNotion } = require('../db');
 
 const NOTION_OAUTH_BASE = 'https://api.notion.com/v1/oauth/authorize';
 const NOTION_TOKEN_URL  = 'https://api.notion.com/v1/oauth/token';
@@ -36,6 +36,8 @@ router.get('/notion', (req, res) => {
     if (req.query.popup === '1') req.session.oauthPopup = true;
     // Store the embed's polling key so we can relay the token after OAuth.
     if (req.query.embed_key) req.session.embedKey = req.query.embed_key.slice(0, 64);
+    // Store the guest ID so we can migrate their data into the Notion workspace after OAuth.
+    if (req.query.guest_id) req.session.guestId = req.query.guest_id.slice(0, 64);
 
     req.session.save(err => {
         if (err) {
@@ -121,6 +123,17 @@ router.get('/notion/callback', async (req, res) => {
     } catch (err) {
         console.error('Failed to persist token:', err.message);
         return res.redirect(`${base}/?notion_error=storage_error`);
+    }
+
+    // If this session carried a guest_id, migrate the guest's timer history into
+    // the Notion workspace so the user doesn't lose data collected before signing in.
+    if (req.session.guestId && tokenData.workspace_id) {
+        try {
+            migrateGuestToNotion(req.session.guestId, tokenData.workspace_id);
+        } catch (err) {
+            console.error('Guest migration error (non-fatal):', err.message);
+        }
+        delete req.session.guestId;
     }
 
     // Generate a client token for localStorage-based auth (works in Notion iframes

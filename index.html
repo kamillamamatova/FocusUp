@@ -351,15 +351,45 @@ const BACKEND_URL = (window.location.hostname === 'localhost' || window.location
     ? 'http://localhost:3001'
     : 'https://focusup-backend-zyrh.onrender.com';
 
-// ── Client token (localStorage-based auth, works in Notion iframes) ──────────
-// Replaces session cookies for Notion API calls. The token is issued by the
-// backend after OAuth and stored here so it survives page reloads and works
-// in cross-origin iframe contexts where cookies are blocked.
+// ── Identity ───────────────────────────────────────────────
+// Two identity layers:
+//   1. clientToken (Notion OAuth) — Bearer header, stored in localStorage after OAuth.
+//      Used for Notion-specific routes (sync, databases) AND as the preferred
+//      identity for state routes when Notion is connected.
+//   2. guestId (anonymous UUID) — X-Guest-ID header, generated on first visit,
+//      stored in localStorage.  Used for state routes when not Notion-connected.
+//      The backend persists guest state server-side so data survives browser
+//      cache clears (as long as localStorage isn't wiped).
+
 const NOTION_TOKEN_KEY = 'focusTimer.notionToken';
-const getClientToken   = () => localStorage.getItem(NOTION_TOKEN_KEY);
-const authHeaders      = () => {
+const GUEST_ID_KEY     = 'focusTimer.guestId';
+
+const getClientToken = () => localStorage.getItem(NOTION_TOKEN_KEY);
+
+const getGuestId = () => {
+    let id = localStorage.getItem(GUEST_ID_KEY);
+    if (!id) {
+        // Generate a UUID-v4 using the Web Crypto API.
+        id = ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
+            (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+        );
+        localStorage.setItem(GUEST_ID_KEY, id);
+    }
+    return id;
+};
+
+// authHeaders — for Notion-specific routes that require OAuth (sync, databases, status).
+const authHeaders = () => {
     const t = getClientToken();
     return t ? { 'Authorization': `Bearer ${t}` } : {};
+};
+
+// identityHeaders — for /api/state: Notion Bearer if available, else X-Guest-ID.
+// This means state routes work for ALL users, authenticated or not.
+const identityHeaders = () => {
+    const t = getClientToken();
+    if (t) return { 'Authorization': `Bearer ${t}` };
+    return { 'X-Guest-ID': getGuestId() };
 };
 
 // ── Notion connection state ────────────────────────────────
@@ -478,8 +508,9 @@ async function checkNotionStatus() {
         notionSelectedDb = (data.selected_db_id && data.selected_db_name)
             ? { id: data.selected_db_id, name: data.selected_db_name }
             : null;
-        // Pull server state in the background when connected so history and
-        // goal stay in sync across browsers and devices.
+        // After connecting Notion, re-pull state under the Notion identity.
+        // The guest state was merged server-side during OAuth; pulling here
+        // brings the merged result into this session.
         if (data.connected) pullAndMergeState();
     } catch {
         if (justConnected) {
@@ -726,6 +757,7 @@ const escapeHtml  = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>
 const escapeAttr  = s => s.replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
 function connectNotion() {
+    const guestId    = getGuestId();
     const isEmbedded = window !== window.top;
     if (isEmbedded) {
         // Generate a key the embed uses to poll the backend for the token.
@@ -733,21 +765,21 @@ function connectNotion() {
         const embedKey = Array.from(crypto.getRandomValues(new Uint8Array(16)))
             .map(b => b.toString(16).padStart(2, '0')).join('');
         const popup = window.open(
-            `${BACKEND_URL}/api/auth/notion?popup=1&embed_key=${embedKey}`,
+            `${BACKEND_URL}/api/auth/notion?popup=1&embed_key=${encodeURIComponent(embedKey)}&guest_id=${encodeURIComponent(guestId)}`,
             '_blank'
         );
         if (popup) {
             startEmbedAuthPoll(embedKey);
         } else {
             // Popup blocked — fall back to top-level navigation.
-            try { window.top.location.href = `${BACKEND_URL}/api/auth/notion`; }
-            catch { window.location.href = `${BACKEND_URL}/api/auth/notion`; }
+            try { window.top.location.href = `${BACKEND_URL}/api/auth/notion?guest_id=${encodeURIComponent(guestId)}`; }
+            catch { window.location.href = `${BACKEND_URL}/api/auth/notion?guest_id=${encodeURIComponent(guestId)}`; }
         }
     } else {
         try {
-            window.top.location.href = `${BACKEND_URL}/api/auth/notion`;
+            window.top.location.href = `${BACKEND_URL}/api/auth/notion?guest_id=${encodeURIComponent(guestId)}`;
         } catch {
-            window.location.href = `${BACKEND_URL}/api/auth/notion`;
+            window.location.href = `${BACKEND_URL}/api/auth/notion?guest_id=${encodeURIComponent(guestId)}`;
         }
     }
 }
@@ -787,58 +819,60 @@ async function disconnectNotion() {
     render();
 }
 
-// ── Server state sync (history + goal across browsers/devices) ────────────
-// Durable fields (history, goalMins, bestStreak) are mirrored to the backend
-// when Notion is connected.  Ephemeral fields (active sessions) stay local.
+// ── Server state sync ─────────────────────────────────────
+// Backend is the canonical source of truth for durable data.
+// Works for ALL users: guests (X-Guest-ID) and Notion-connected (Bearer).
+// localStorage is used as a fast-load cache only.
 
 let _pushPending = false;
 
 async function pushStateToServer() {
-    if (notionStatus !== 'connected') return;
+    // No gate on notionStatus — guests push too.
     if (_pushPending) return;
     _pushPending = true;
     try {
         await fetch(`${BACKEND_URL}/api/state`, {
             method:      'POST',
             credentials: 'include',
-            headers:     { 'Content-Type': 'application/json', ...authHeaders() },
+            headers:     { 'Content-Type': 'application/json', ...identityHeaders() },
             body:        JSON.stringify({ state: {
                 goalMins:   state.goalMins,
                 history:    state.history,
                 bestStreak: state.bestStreak,
             }}),
         });
-    } catch { /* non-fatal — localStorage is source of truth */ }
+    } catch { /* non-fatal — localStorage cache remains usable */ }
     _pushPending = false;
 }
 
+// Pull canonical state from the backend and merge into local state.
+// Called on startup and after any identity change (Notion connect/disconnect).
 async function pullAndMergeState() {
-    if (notionStatus !== 'connected') return;
     try {
         const res = await fetch(`${BACKEND_URL}/api/state`, {
             credentials: 'include',
-            headers:     authHeaders(),
-            signal:      AbortSignal.timeout(6000),
+            headers:     identityHeaders(),
+            signal:      AbortSignal.timeout(8000),
         });
         if (!res.ok) return;
         const data = await res.json();
         if (data.state) {
             _mergeServerState(data.state);
-            // Push merged result back so the server has the union of both sides.
-            await pushStateToServer();
+            // Push back the merged result so the server holds the union of both sides.
+            // This is the migration path for existing localStorage-only users.
+            pushStateToServer();
         } else {
-            // Server has no state yet — seed it from local.
-            await pushStateToServer();
+            // Server has no record yet — seed it from local state.
+            pushStateToServer();
         }
-    } catch { /* non-fatal */ }
+    } catch { /* backend unavailable — localStorage cache is fine */ }
 }
 
 function _mergeServerState(serverState) {
     let changed = false;
 
-    // Merge history: add any server entries not present locally.
-    // Local entries take precedence so a device that just finished a day
-    // is never overwritten by a stale server copy.
+    // History merge: server fills in entries the local cache is missing.
+    // Local wins on conflict — the device that just logged a day has the freshest copy.
     if (serverState.history && typeof serverState.history === 'object' && !Array.isArray(serverState.history)) {
         for (const [date, rec] of Object.entries(serverState.history)) {
             if (!state.history[date]) {
@@ -848,7 +882,7 @@ function _mergeServerState(serverState) {
         }
     }
 
-    // Sync goal: server wins so the user's preference propagates to all devices.
+    // Goal: server wins so the preference propagates to every device/context.
     if (typeof serverState.goalMins === 'number' && serverState.goalMins >= 1 &&
         serverState.goalMins !== state.goalMins) {
         state.goalMins = serverState.goalMins;
@@ -1049,12 +1083,12 @@ const render = () => {
         pill.className += ' status-working';
     }
 
-    // Sync label
+    // Sync label — shows the active persistence mode
     document.getElementById('syncLabel').textContent =
         notionStatus === 'connected' && notionSelectedDb ? `Notion: ${notionSelectedDb.name}` :
         notionStatus === 'connected'                     ? 'Notion connected' :
         notionStatus === 'checking'                      ? 'Checking\u2026' :
-        'Local only';
+        'Saved (guest)';
 
     // Goal input
     document.getElementById('goalInput').value = state.goalMins;
@@ -1128,6 +1162,7 @@ document.getElementById('importBtn').addEventListener('click', () => {
     parsed.goalMins ??= 120; parsed.sessions ??= []; parsed.history ??= {}; parsed.bestStreak ??= 0; parsed.lastOpened ??= todayKey();
     state = parsed;
     saveState(); recomputeBestStreak(); render();
+    pushStateToServer(); // persist imported data to backend
     statusEl.textContent = 'Imported successfully';
     statusEl.style.color = 'var(--success)';
     setTimeout(() => statusEl.textContent = '', 3000);
@@ -1200,7 +1235,14 @@ if (_oauthParams.has('notion_error')) {
 
 // Render the panel immediately so it's never blank while the async fetch runs.
 renderNotionSync();
-// Check auth status with backend (will call renderNotionSync() again with the real state).
+
+// Pull canonical state from the backend immediately on load.
+// Works for guests (X-Guest-ID) and Notion users (Bearer).
+// localStorage is only a fast-init cache — backend is the source of truth.
+pullAndMergeState();
+
+// Separately check Notion auth status (governs the Notion Sync panel UI).
+// Also re-pulls state under the Notion identity if connected (after guest migration).
 checkNotionStatus();
 </script>
 </body>

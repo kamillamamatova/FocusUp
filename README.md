@@ -29,11 +29,15 @@ Count up toward a daily goal, finish your day with one click, and keep your stre
 
 ### Your data
 
-Your timer data is always saved locally in this browser. When you connect Notion, your history and goal also sync to the backend, making them available on any browser or device that uses the same Notion workspace.
+FocusUp stores your data in two places: a local browser cache (fast, always available) and the backend server (canonical, cross-device).
 
-- **With Notion connected**: history and your goal setting sync automatically across browsers and devices
-- **Without Notion**: data stays in this browser only
-- Use **Data Export / Import** to back up your data or migrate it manually if needed
+**Guest mode (no login required)**
+On your first visit, FocusUp assigns you a private guest identity stored in this browser. Your history and goal are saved to the backend under that identity immediately — no account creation needed. The data is tied to this browser (the guest ID lives in localStorage), so clearing browser storage would lose the link. Use **Data Export / Import** to take a manual backup.
+
+**Notion-connected mode**
+When you connect Notion, FocusUp links your guest identity to your Notion workspace. Any history you collected as a guest is automatically merged into your Notion account. From that point on, your data is accessible from any browser or device where you connect the same Notion workspace — including the Notion embed.
+
+- Use **Data Export / Import** at any time to take a manual backup or move data to a fresh browser
 
 ### How Notion sync works
 
@@ -74,7 +78,7 @@ FocusUp fills these in automatically every time you finish a day — you never n
 3. Paste your hosted URL and click **Embed link**
 4. Resize the block, 600 px tall is a good starting point
 
-> **Tip:** When you connect Notion, your focus history and goal setting sync automatically across all browsers and devices that use the same Notion workspace. Without a Notion connection, data stays local to the current browser.
+> **Tip:** The Notion embed is a first-class path. Connect Notion once and your history, goal, and streaks are shared between the embed and any browser tab — no separate setup needed.
 
 ---
 

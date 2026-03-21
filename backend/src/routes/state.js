@@ -2,26 +2,25 @@
 /**
  * Timer/history state sync routes
  *
- *   GET  /api/state  — fetch durable state for the authenticated workspace
- *   POST /api/state  — save durable state for the authenticated workspace
+ *   GET  /api/state  — fetch canonical state for the identified user
+ *   POST /api/state  — save canonical state for the identified user
  *
- * State is keyed by Notion workspace_id so it survives re-authentication and
- * is shared across all devices that connect to the same Notion workspace.
+ * Identity is resolved by the identifyUser middleware (Bearer token, session
+ * cookie, or X-Guest-ID header).  Guest users get the same persistent storage
+ * as Notion-connected users — no Notion auth is required.
  *
- * Only durable fields are persisted (goalMins, history, bestStreak).
- * Ephemeral session data (active timer ticks, sessions array) stays local.
+ * Only durable fields are persisted:
+ *   { goalMins, history, bestStreak }
+ * Ephemeral fields (active session timestamps) stay local to the browser.
  */
 
-const router      = require('express').Router();
-const requireAuth = require('../middleware/auth');
-const { saveAppState, getAppState } = require('../db');
+const router       = require('express').Router();
+const identifyUser = require('../middleware/identify');
+const { saveUserState, getUserState } = require('../db');
 
 // ── GET /api/state ────────────────────────────────────────
-router.get('/', requireAuth, (req, res) => {
-    const workspaceId = req.tokenRow.workspace_id;
-    if (!workspaceId) return res.json({ state: null });
-
-    const row = getAppState(workspaceId);
+router.get('/', identifyUser, (req, res) => {
+    const row = getUserState(req.ownerId);
     if (!row) return res.json({ state: null });
 
     try {
@@ -32,29 +31,24 @@ router.get('/', requireAuth, (req, res) => {
 });
 
 // ── POST /api/state ───────────────────────────────────────
-router.post('/', requireAuth, (req, res) => {
-    const workspaceId = req.tokenRow.workspace_id;
-    if (!workspaceId) {
-        return res.status(400).json({ error: 'workspace_id not available for this token' });
-    }
-
+router.post('/', identifyUser, (req, res) => {
     const { state } = req.body || {};
     if (!state || typeof state !== 'object' || Array.isArray(state)) {
         return res.status(400).json({ error: 'body.state must be a plain object' });
     }
 
-    // Only persist durable fields — ignore ephemeral session/tick data.
+    // Sanitise: only persist known durable fields.
     const toSave = {
-        goalMins:   typeof state.goalMins === 'number'  && state.goalMins >= 1  ? state.goalMins  : 120,
-        history:    typeof state.history  === 'object'  && !Array.isArray(state.history) && state.history ? state.history : {},
-        bestStreak: typeof state.bestStreak === 'number' ? state.bestStreak : 0,
+        goalMins:   typeof state.goalMins   === 'number'  && state.goalMins >= 1 ? state.goalMins   : 120,
+        history:    typeof state.history    === 'object'  && !Array.isArray(state.history) && state.history ? state.history : {},
+        bestStreak: typeof state.bestStreak === 'number'                          ? state.bestStreak : 0,
     };
 
     try {
-        saveAppState(workspaceId, JSON.stringify(toSave));
-        res.json({ ok: true });
+        saveUserState(req.ownerId, req.ownerType, JSON.stringify(toSave));
+        res.json({ ok: true, ownerType: req.ownerType });
     } catch (err) {
-        console.error('Failed to save app state:', err.message);
+        console.error('Failed to save user state:', err.message);
         res.status(500).json({ error: 'Could not save state' });
     }
 });

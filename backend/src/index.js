@@ -116,8 +116,8 @@ const server = app.listen(PORT, () => {
     console.log(`  List DBs:     GET  /api/databases`);
     console.log(`  Select DB:    POST /api/databases/select`);
     console.log(`  Sync:         POST /api/sync`);
-    console.log(`  State get:    GET  /api/state`);
-    console.log(`  State set:    POST /api/state`);
+    console.log(`  State get:    GET  /api/state   (guest or Notion)`);
+    console.log(`  State set:    POST /api/state   (guest or Notion)`);
 });
 
 // ── Graceful shutdown ─────────────────────────────────────
