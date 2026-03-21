@@ -45,7 +45,7 @@ db.exec(`
 `);
 
 // Migration: add columns that may be missing in databases created before this version.
-for (const col of ['selected_db_id TEXT', 'selected_db_name TEXT']) {
+for (const col of ['selected_db_id TEXT', 'selected_db_name TEXT', 'client_token TEXT']) {
     try { db.exec(`ALTER TABLE notion_tokens ADD COLUMN ${col}`); } catch { /* column already exists */ }
 }
 
@@ -114,9 +114,26 @@ function saveSelectedDb(sessionId, dbId, dbName) {
     `).run(dbId, dbName, Date.now(), sessionId);
 }
 
+/**
+ * Save a random client token for the given session.
+ * This token is sent by the frontend as a Bearer header instead of relying
+ * on cross-site cookies, making auth work inside Notion iframes.
+ */
+function saveClientToken(sessionId, clientToken) {
+    db.prepare(`UPDATE notion_tokens SET client_token = ?, updated_at = ? WHERE session_id = ?`)
+      .run(clientToken, Date.now(), sessionId);
+}
+
+/**
+ * Look up a token row by client token.  Returns null if not found.
+ */
+function getTokenByClientToken(clientToken) {
+    return db.prepare('SELECT * FROM notion_tokens WHERE client_token = ?').get(clientToken) || null;
+}
+
 /** Graceful shutdown — lets the process exit cleanly. */
 function close() {
     db.close();
 }
 
-module.exports = { db, saveToken, getToken, deleteToken, saveSelectedDb, close };
+module.exports = { db, saveToken, getToken, deleteToken, saveSelectedDb, saveClientToken, getTokenByClientToken, close };

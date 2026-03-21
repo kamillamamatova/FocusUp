@@ -347,11 +347,20 @@ const dayIndex = key => {
 };
 
 // ── Backend URL ────────────────────────────────────────────
-// Local dev resolves to localhost automatically.
-// Replace the production string with your deployed backend URL.
 const BACKEND_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
     ? 'http://localhost:3001'
     : 'https://focusup-backend-zyrh.onrender.com';
+
+// ── Client token (localStorage-based auth, works in Notion iframes) ──────────
+// Replaces session cookies for Notion API calls. The token is issued by the
+// backend after OAuth and stored here so it survives page reloads and works
+// in cross-origin iframe contexts where cookies are blocked.
+const NOTION_TOKEN_KEY = 'focusTimer.notionToken';
+const getClientToken   = () => localStorage.getItem(NOTION_TOKEN_KEY);
+const authHeaders      = () => {
+    const t = getClientToken();
+    return t ? { 'Authorization': `Bearer ${t}` } : {};
+};
 
 // ── Notion connection state ────────────────────────────────
 // 'checking' | 'connected' | 'disconnected' | 'error' | 'unavailable'
@@ -458,7 +467,8 @@ async function checkNotionStatus() {
     try {
         const res = await fetch(`${BACKEND_URL}/api/auth/status`, {
             credentials: 'include',
-            signal: AbortSignal.timeout(6000),
+            headers:     authHeaders(),
+            signal:      AbortSignal.timeout(6000),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
@@ -495,13 +505,8 @@ function renderNotionSync() {
     }
 
     if (notionStatus === 'iframe_limited') {
-        const isEmbedded = window !== window.top;
-        const reason = isEmbedded
-            ? 'Browsers block session cookies inside embedded pages. Open FocusUp in its own browser tab to use Notion sync.'
-            : 'Your browser may be blocking cross-site cookies. Try opening FocusUp directly in its own tab.';
         panel.innerHTML = `
-            <p class="notion-desc"><strong>Connection succeeded</strong>, but it can't be confirmed ${isEmbedded ? 'inside the Notion embed' : 'right now'}.</p>
-            <p class="notion-desc-small">${reason}</p>
+            <p class="notion-desc"><strong>Connection succeeded</strong>, but couldn't be confirmed. Your browser may be blocking cross-site cookies.</p>
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;">
               <a href="${escapeAttr(location.href)}" target="_blank" rel="noopener" class="btn btn-primary" style="padding:7px 16px;font-size:13px;text-decoration:none;">Open in new tab</a>
               <button type="button" class="btn btn-secondary" id="retryStatusBtn" style="padding:7px 16px;font-size:13px;">Try again</button>
@@ -550,15 +555,6 @@ function renderNotionSync() {
     // When embedded in a Notion iframe, cookies are blocked cross-site so the
     // status check always returns disconnected. Show an open-in-tab prompt instead
     // of a "Connect Notion" button that won't behave as expected inside the embed.
-    const isEmbedded = window !== window.top;
-    if (notionStatus === 'disconnected' && isEmbedded) {
-        panel.innerHTML = `
-            <p class="notion-desc">Notion sync works best in its own browser tab.</p>
-            <a href="${escapeAttr(location.href)}" target="_blank" rel="noopener" class="btn btn-primary" style="padding:7px 16px;font-size:13px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;">
-              Open FocusUp in a new tab
-            </a>`;
-        return;
-    }
     const errorLine = notionStatus === 'error' && notionErrorMsg
         ? `<p class="notion-error-text">${notionErrorMsg}</p>`
         : '';
@@ -664,7 +660,7 @@ async function loadDatabases() {
     notionDbError   = null;
     renderNotionSync();
     try {
-        const res = await fetch(`${BACKEND_URL}/api/databases`, { credentials: 'include' });
+        const res = await fetch(`${BACKEND_URL}/api/databases`, { credentials: 'include', headers: authHeaders() });
         const data = await res.json();
         if (!res.ok) {
             notionDbError = data.error || 'Could not load databases — please try again.';
@@ -687,7 +683,7 @@ async function selectDatabase(dbId, dbName) {
         const res = await fetch(`${BACKEND_URL}/api/databases/select`, {
             method:      'POST',
             credentials: 'include',
-            headers:     { 'Content-Type': 'application/json' },
+            headers:     { 'Content-Type': 'application/json', ...authHeaders() },
             body:        JSON.stringify({ dbId, dbName }),
         });
         if (!res.ok) {
@@ -710,20 +706,25 @@ const escapeHtml  = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>
 const escapeAttr  = s => s.replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
 function connectNotion() {
-    const url = `${BACKEND_URL}/api/auth/notion`;
-    // Navigate at the top-level window so the OAuth flow works correctly
-    // even when the app is embedded in a Notion iframe.
-    try {
-        window.top.location.href = url;
-    } catch {
-        // Cross-origin iframe restriction (shouldn't happen here) — fall back.
-        window.location.href = url;
+    const isEmbedded = window !== window.top;
+    if (isEmbedded) {
+        // Inside a Notion iframe: open OAuth in a new tab so cookies/redirects work.
+        // The new tab will postMessage the client token back when done.
+        window.open(`${BACKEND_URL}/api/auth/notion?popup=1`, '_blank');
+    } else {
+        // Direct tab: navigate top-level window to OAuth.
+        try {
+            window.top.location.href = `${BACKEND_URL}/api/auth/notion`;
+        } catch {
+            window.location.href = `${BACKEND_URL}/api/auth/notion`;
+        }
     }
 }
 
 async function disconnectNotion() {
+    localStorage.removeItem(NOTION_TOKEN_KEY);
     try {
-        await fetch(`${BACKEND_URL}/api/auth/logout`, { method: 'POST', credentials: 'include' });
+        await fetch(`${BACKEND_URL}/api/auth/logout`, { method: 'POST', credentials: 'include', headers: authHeaders() });
     } catch { /* network failure — still update local state */ }
     notionStatus    = 'disconnected';
     notionWorkspace = null;
@@ -856,7 +857,7 @@ const finishDay = async () => {
         const res  = await fetch(`${BACKEND_URL}/api/sync`, {
             method:      'POST',
             credentials: 'include',
-            headers:     { 'Content-Type': 'application/json' },
+            headers:     { 'Content-Type': 'application/json', ...authHeaders() },
             body:        JSON.stringify({ date, minutes: mins, goal, met }),
         });
         const data = await res.json();
@@ -1010,6 +1011,18 @@ if ((settings.themeMode || 'light') === 'dark') {
 recomputeBestStreak();
 render();
 
+// Listen for the client token posted back from the OAuth popup (embed flow).
+window.addEventListener('message', (e) => {
+    if (e.origin !== window.location.origin) return;
+    if (e.data?.type === 'NOTION_AUTH_DONE' && e.data.clientToken) {
+        localStorage.setItem(NOTION_TOKEN_KEY, e.data.clientToken);
+        sessionStorage.setItem('notionJustConnected', '1');
+        notionStatus = 'verifying';
+        renderNotionSync();
+        checkNotionStatus();
+    }
+});
+
 // Handle OAuth return — Notion redirects back with ?notion_connected or ?notion_error
 const _oauthParams = new URLSearchParams(location.search);
 if (_oauthParams.has('notion_error')) {
@@ -1017,9 +1030,19 @@ if (_oauthParams.has('notion_error')) {
     notionErrorMsg = friendlyNotionError(_oauthParams.get('notion_error'));
     history.replaceState({}, '', location.pathname);
 } else if (_oauthParams.has('notion_connected')) {
+    // Store the client token so Bearer auth works in iframes and across sessions.
+    const ct = _oauthParams.get('ct');
+    if (ct) localStorage.setItem(NOTION_TOKEN_KEY, ct);
+
+    // Popup flow: send the token back to the opener (embed), then close.
+    if (_oauthParams.get('popup') === '1' && window.opener) {
+        try {
+            window.opener.postMessage({ type: 'NOTION_AUTH_DONE', clientToken: ct }, window.location.origin);
+        } catch { /* opener may be gone */ }
+        window.close();
+    }
+
     // Set a flag so checkNotionStatus knows this is a fresh OAuth return.
-    // If the status check then fails, it shows a specific recovery message
-    // rather than silently falling back to "Connect Notion".
     sessionStorage.setItem('notionJustConnected', '1');
     notionStatus = 'verifying';
     history.replaceState({}, '', location.pathname);

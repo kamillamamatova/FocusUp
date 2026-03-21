@@ -2,32 +2,48 @@
 /**
  * Shared requireAuth middleware.
  *
- * Checks that:
- *   1. The session has a `connected` flag (set after successful OAuth).
- *   2. A token row actually exists in the DB for this session (guards against
- *      orphaned sessions where the cookie outlives the DB record).
+ * Accepts two auth methods (checked in order):
+ *   1. Bearer token  — sent as `Authorization: Bearer <clientToken>` header.
+ *      Works in cross-origin contexts (Notion iframes) where session cookies
+ *      are blocked by browser third-party cookie restrictions.
+ *   2. Session cookie — legacy fallback for existing browser-tab sessions.
  *
- * On success, attaches `req.notionToken` and `req.tokenRow` for downstream use.
- * Routes that need `selected_db_id` should check `req.tokenRow.selected_db_id`
- * themselves after this middleware runs.
+ * On success, attaches to the request:
+ *   req.notionToken       — Notion access token
+ *   req.tokenRow          — full DB row
+ *   req.resolvedSessionId — session_id from the DB row (use instead of req.session.id)
  */
 
-const { getToken } = require('../db');
+const { getToken, getTokenByClientToken } = require('../db');
 
 module.exports = function requireAuth(req, res, next) {
-    if (!req.session?.connected) {
-        return res.status(401).json({ error: 'Not authenticated — connect Notion first' });
+    // ── 1. Bearer token (iframe-safe) ─────────────────────
+    const authHeader = req.headers.authorization || '';
+    if (authHeader.startsWith('Bearer ')) {
+        const clientToken = authHeader.slice(7).trim();
+        if (clientToken) {
+            const row = getTokenByClientToken(clientToken);
+            if (row) {
+                req.notionToken       = row.access_token;
+                req.tokenRow          = row;
+                req.resolvedSessionId = row.session_id;
+                return next();
+            }
+        }
     }
 
-    const row = getToken(req.session.id);
-    if (!row) {
-        // Session cookie exists but the DB record was deleted (e.g. manual cleanup).
-        // Clear the stale flag so subsequent /status calls return connected:false.
+    // ── 2. Session cookie (browser tab fallback) ───────────
+    if (req.session?.connected) {
+        const row = getToken(req.session.id);
+        if (row) {
+            req.notionToken       = row.access_token;
+            req.tokenRow          = row;
+            req.resolvedSessionId = req.session.id;
+            return next();
+        }
+        // Session cookie exists but DB record is gone — clear stale flag.
         req.session.connected = false;
-        return res.status(401).json({ error: 'Session expired — please reconnect Notion' });
     }
 
-    req.notionToken = row.access_token;
-    req.tokenRow    = row;
-    next();
+    return res.status(401).json({ error: 'Not authenticated — connect Notion first' });
 };

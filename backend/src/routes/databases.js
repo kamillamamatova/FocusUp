@@ -61,7 +61,7 @@ router.post('/select', requireAuth, (req, res) => {
         return res.status(400).json({ error: 'dbId is required' });
     }
 
-    saveSelectedDb(req.session.id, dbId.trim(), (dbName || '').trim() || 'Untitled');
+    saveSelectedDb(req.resolvedSessionId, dbId.trim(), (dbName || '').trim() || 'Untitled');
     res.json({ ok: true });
 });
 

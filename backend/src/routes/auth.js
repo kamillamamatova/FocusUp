@@ -13,7 +13,7 @@
 
 const { randomBytes } = require('crypto');
 const router = require('express').Router();
-const { saveToken, getToken, deleteToken } = require('../db');
+const { saveToken, getToken, deleteToken, saveClientToken, getTokenByClientToken } = require('../db');
 
 const NOTION_OAUTH_BASE = 'https://api.notion.com/v1/oauth/authorize';
 const NOTION_TOKEN_URL  = 'https://api.notion.com/v1/oauth/token';
@@ -32,6 +32,9 @@ router.get('/notion', (req, res) => {
 
     // saveUninitialized is false, so we must save explicitly here to ensure
     // the cookie is set before the browser follows the redirect.
+    // Remember whether this was initiated from a popup (Notion embed context).
+    if (req.query.popup === '1') req.session.oauthPopup = true;
+
     req.session.save(err => {
         if (err) {
             console.error('Session save error before OAuth redirect:', err);
@@ -118,18 +121,52 @@ router.get('/notion/callback', async (req, res) => {
         return res.redirect(`${base}/?notion_error=storage_error`);
     }
 
+    // Generate a client token for localStorage-based auth (works in Notion iframes
+    // where session cookies are blocked by third-party cookie restrictions).
+    const clientToken = randomBytes(32).toString('hex');
+    try {
+        saveClientToken(req.session.id, clientToken);
+    } catch (err) {
+        console.error('Failed to save client token:', err.message);
+        // Non-fatal — session cookie auth still works in direct tabs.
+    }
+
     // Mark session as connected (cheap flag — avoids a DB lookup on /status).
     req.session.connected = true;
+    const isPopup = !!req.session.oauthPopup;
     req.session.save(err => {
         if (err) console.error('Session save error after token exchange:', err.message);
         else console.log('Session saved, sid:', req.session.id);
-        res.redirect(`${base}/?notion_connected=true`);
+        const params = new URLSearchParams({ notion_connected: 'true', ct: clientToken });
+        if (isPopup) params.set('popup', '1');
+        res.redirect(`${base}/?${params}`);
     });
 });
 
 // ── 3. Auth status ────────────────────────────────────────
 router.get('/status', (req, res) => {
-    console.log('Status check — sid:', req.session?.id, '| connected flag:', req.session?.connected);
+    // Try Bearer token first (works in Notion iframes).
+    const authHeader = req.headers.authorization || '';
+    if (authHeader.startsWith('Bearer ')) {
+        const clientToken = authHeader.slice(7).trim();
+        if (clientToken) {
+            const row = getTokenByClientToken(clientToken);
+            if (row) {
+                console.log('Status check via Bearer token — workspace:', row.workspace_name);
+                return res.json({
+                    connected:        true,
+                    workspace_name:   row.workspace_name   || null,
+                    workspace_icon:   row.workspace_icon   || null,
+                    selected_db_id:   row.selected_db_id   || null,
+                    selected_db_name: row.selected_db_name || null,
+                });
+            }
+        }
+        return res.json({ connected: false });
+    }
+
+    // Fall back to session cookie.
+    console.log('Status check via session — sid:', req.session?.id, '| connected flag:', req.session?.connected);
     if (!req.session?.connected) {
         return res.json({ connected: false });
     }
@@ -151,8 +188,17 @@ router.get('/status', (req, res) => {
 
 // ── 4. Disconnect ─────────────────────────────────────────
 router.post('/logout', (req, res) => {
+    // Delete by Bearer token if present.
+    const authHeader = req.headers.authorization || '';
+    if (authHeader.startsWith('Bearer ')) {
+        const clientToken = authHeader.slice(7).trim();
+        if (clientToken) {
+            const row = getTokenByClientToken(clientToken);
+            if (row) deleteToken(row.session_id);
+        }
+    }
+    // Also clear session-based token if present.
     if (req.session?.id) deleteToken(req.session.id);
-    // Respond before destroying so the client gets the 200.
     res.json({ ok: true });
     req.session?.destroy(err => {
         if (err) console.error('Session destroy error on logout:', err.message);
