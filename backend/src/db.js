@@ -18,7 +18,9 @@ const Database = require('better-sqlite3');
 const path     = require('path');
 const fs       = require('fs');
 
-const DATA_DIR = path.join(__dirname, '..', 'data');
+// DATA_PATH can be set to a persistent disk mount point on hosting platforms
+// (e.g. /var/data on Render). Falls back to backend/data/ for local dev.
+const DATA_DIR = process.env.DATA_PATH || path.join(__dirname, '..', 'data');
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
 const db = new Database(path.join(DATA_DIR, 'focusup.db'));

@@ -347,8 +347,11 @@ const dayIndex = key => {
 };
 
 // ── Backend URL ────────────────────────────────────────────
-// Change this to your deployed backend URL before going to production.
-const BACKEND_URL = 'http://localhost:3001';
+// Local dev resolves to localhost automatically.
+// Replace the production string with your deployed backend URL.
+const BACKEND_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? 'http://localhost:3001'
+    : 'https://YOUR_BACKEND_URL_HERE';
 
 // ── Notion connection state ────────────────────────────────
 // 'checking' | 'connected' | 'disconnected' | 'error' | 'unavailable'
