@@ -13,7 +13,7 @@
 
 const { randomBytes } = require('crypto');
 const router = require('express').Router();
-const { saveToken, getToken, deleteToken, saveClientToken, getTokenByClientToken, savePendingAuth, consumePendingAuth, migrateGuestToNotion } = require('../db');
+const { saveToken, getToken, deleteToken, saveClientToken, getTokenByClientToken, migrateGuestToNotion } = require('../db');
 
 const NOTION_OAUTH_BASE = 'https://api.notion.com/v1/oauth/authorize';
 const NOTION_TOKEN_URL  = 'https://api.notion.com/v1/oauth/token';
@@ -32,10 +32,6 @@ router.get('/notion', (req, res) => {
 
     // saveUninitialized is false, so we must save explicitly here to ensure
     // the cookie is set before the browser follows the redirect.
-    // Remember whether this was initiated from a popup (Notion embed context).
-    if (req.query.popup === '1') req.session.oauthPopup = true;
-    // Store the embed's polling key so we can relay the token after OAuth.
-    if (req.query.embed_key) req.session.embedKey = req.query.embed_key.slice(0, 64);
     // Store the guest ID so we can migrate their data into the Notion workspace after OAuth.
     if (req.query.guest_id) req.session.guestId = req.query.guest_id.slice(0, 64);
 
@@ -146,24 +142,12 @@ router.get('/notion/callback', async (req, res) => {
         // Non-fatal — session cookie auth still works in direct tabs.
     }
 
-    // If this OAuth was started from an embed popup, save a relay record so
-    // the embed can poll for the token even if window.opener/postMessage fails.
-    if (req.session.embedKey) {
-        try { savePendingAuth(req.session.embedKey, req.session.id); } catch (err) {
-            console.error('Failed to save pending auth:', err.message);
-        }
-    }
-
     // Mark session as connected (cheap flag — avoids a DB lookup on /status).
     req.session.connected = true;
-    const isPopup = !!req.session.oauthPopup;
-    const embedKey = req.session.embedKey || null;
     req.session.save(err => {
         if (err) console.error('Session save error after token exchange:', err.message);
         else console.log('Session saved, sid:', req.session.id);
         const params = new URLSearchParams({ notion_connected: 'true', ct: clientToken });
-        if (isPopup) params.set('popup', '1');
-        if (embedKey) params.set('embed_key', embedKey);
         res.redirect(`${base}/?${params}`);
     });
 });
@@ -230,17 +214,5 @@ router.post('/logout', (req, res) => {
     });
 });
 
-// ── 5. Embed polling — relay token from popup to embed ─────
-// The embed calls this every 2s after opening the OAuth popup.
-// Returns {ready:true, clientToken} once OAuth has completed, then clears the record.
-router.get('/poll', (req, res) => {
-    const key = (req.query.key || '').trim();
-    if (!key || key.length > 64) return res.json({ ready: false });
-
-    const tokenRow = consumePendingAuth(key);
-    if (!tokenRow || !tokenRow.client_token) return res.json({ ready: false });
-
-    res.json({ ready: true, clientToken: tokenRow.client_token });
-});
 
 module.exports = router;
