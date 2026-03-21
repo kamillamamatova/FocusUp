@@ -542,6 +542,18 @@ function renderNotionSync() {
     }
 
     // 'error' or 'disconnected'
+    // When embedded in a Notion iframe, cookies are blocked cross-site so the
+    // status check always returns disconnected. Show an open-in-tab prompt instead
+    // of a "Connect Notion" button that won't behave as expected inside the embed.
+    const isEmbedded = window !== window.top;
+    if (notionStatus === 'disconnected' && isEmbedded) {
+        panel.innerHTML = `
+            <p class="notion-desc">Notion sync works best in its own browser tab.</p>
+            <a href="${escapeAttr(location.href)}" target="_blank" rel="noopener" class="btn btn-primary" style="padding:7px 16px;font-size:13px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;">
+              Open FocusUp in a new tab
+            </a>`;
+        return;
+    }
     const errorLine = notionStatus === 'error' && notionErrorMsg
         ? `<p class="notion-error-text">${notionErrorMsg}</p>`
         : '';
@@ -1008,7 +1020,9 @@ if (_oauthParams.has('notion_error')) {
     history.replaceState({}, '', location.pathname);
 }
 
-// Check auth status with backend (also renders notionSyncPanel)
+// Render the panel immediately so it's never blank while the async fetch runs.
+renderNotionSync();
+// Check auth status with backend (will call renderNotionSync() again with the real state).
 checkNotionStatus();
 </script>
 </body>
