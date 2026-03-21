@@ -49,6 +49,17 @@ for (const col of ['selected_db_id TEXT', 'selected_db_name TEXT', 'client_token
     try { db.exec(`ALTER TABLE notion_tokens ADD COLUMN ${col}`); } catch { /* column already exists */ }
 }
 
+// Short-lived table for relaying the client token from a popup back to the embed.
+// The embed polls /api/auth/poll?key=EMBEDKEY after opening the OAuth popup.
+// Rows are cleaned up on read or after 5 minutes.
+db.exec(`
+    CREATE TABLE IF NOT EXISTS pending_auth (
+        embed_key  TEXT    PRIMARY KEY,
+        session_id TEXT    NOT NULL,
+        created_at INTEGER NOT NULL
+    )
+`);
+
 // ── Public API ────────────────────────────────────────────
 
 /**
@@ -131,9 +142,31 @@ function getTokenByClientToken(clientToken) {
     return db.prepare('SELECT * FROM notion_tokens WHERE client_token = ?').get(clientToken) || null;
 }
 
+/**
+ * Store a short-lived mapping from embedKey → sessionId.
+ * Used to relay the client token from an OAuth popup to the waiting embed.
+ */
+function savePendingAuth(embedKey, sessionId) {
+    db.prepare(`INSERT OR REPLACE INTO pending_auth (embed_key, session_id, created_at) VALUES (?, ?, ?)`)
+      .run(embedKey, sessionId, Date.now());
+}
+
+/**
+ * Look up and immediately remove a pending auth entry.
+ * Also prunes entries older than 5 minutes.
+ * Returns the matching token row, or null.
+ */
+function consumePendingAuth(embedKey) {
+    db.prepare('DELETE FROM pending_auth WHERE created_at < ?').run(Date.now() - 5 * 60 * 1000);
+    const row = db.prepare('SELECT session_id FROM pending_auth WHERE embed_key = ?').get(embedKey);
+    if (!row) return null;
+    db.prepare('DELETE FROM pending_auth WHERE embed_key = ?').run(embedKey);
+    return getToken(row.session_id);
+}
+
 /** Graceful shutdown — lets the process exit cleanly. */
 function close() {
     db.close();
 }
 
-module.exports = { db, saveToken, getToken, deleteToken, saveSelectedDb, saveClientToken, getTokenByClientToken, close };
+module.exports = { db, saveToken, getToken, deleteToken, saveSelectedDb, saveClientToken, getTokenByClientToken, savePendingAuth, consumePendingAuth, close };

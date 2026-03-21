@@ -708,17 +708,52 @@ const escapeAttr  = s => s.replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 function connectNotion() {
     const isEmbedded = window !== window.top;
     if (isEmbedded) {
-        // Inside a Notion iframe: open OAuth in a new tab so cookies/redirects work.
-        // The new tab will postMessage the client token back when done.
-        window.open(`${BACKEND_URL}/api/auth/notion?popup=1`, '_blank');
+        // Generate a key the embed uses to poll the backend for the token.
+        // This works even when window.opener is null (Notion iframe sandbox).
+        const embedKey = Array.from(crypto.getRandomValues(new Uint8Array(16)))
+            .map(b => b.toString(16).padStart(2, '0')).join('');
+        const popup = window.open(
+            `${BACKEND_URL}/api/auth/notion?popup=1&embed_key=${embedKey}`,
+            '_blank'
+        );
+        if (popup) {
+            startEmbedAuthPoll(embedKey);
+        } else {
+            // Popup blocked — fall back to top-level navigation.
+            try { window.top.location.href = `${BACKEND_URL}/api/auth/notion`; }
+            catch { window.location.href = `${BACKEND_URL}/api/auth/notion`; }
+        }
     } else {
-        // Direct tab: navigate top-level window to OAuth.
         try {
             window.top.location.href = `${BACKEND_URL}/api/auth/notion`;
         } catch {
             window.location.href = `${BACKEND_URL}/api/auth/notion`;
         }
     }
+}
+
+let _embedPollTimer = null;
+function startEmbedAuthPoll(embedKey) {
+    if (_embedPollTimer) clearInterval(_embedPollTimer);
+    const deadline = Date.now() + 5 * 60 * 1000; // stop after 5 minutes
+    _embedPollTimer = setInterval(async () => {
+        if (Date.now() > deadline) { clearInterval(_embedPollTimer); _embedPollTimer = null; return; }
+        try {
+            const res = await fetch(`${BACKEND_URL}/api/auth/poll?key=${embedKey}`, {
+                signal: AbortSignal.timeout(4000),
+            });
+            const data = await res.json();
+            if (data.ready && data.clientToken) {
+                clearInterval(_embedPollTimer);
+                _embedPollTimer = null;
+                localStorage.setItem(NOTION_TOKEN_KEY, data.clientToken);
+                sessionStorage.setItem('notionJustConnected', '1');
+                notionStatus = 'verifying';
+                renderNotionSync();
+                checkNotionStatus();
+            }
+        } catch { /* ignore — keep polling */ }
+    }, 2000);
 }
 
 async function disconnectNotion() {
@@ -1034,12 +1069,27 @@ if (_oauthParams.has('notion_error')) {
     const ct = _oauthParams.get('ct');
     if (ct) localStorage.setItem(NOTION_TOKEN_KEY, ct);
 
-    // Popup flow: send the token back to the opener (embed), then close.
-    if (_oauthParams.get('popup') === '1' && window.opener) {
-        try {
-            window.opener.postMessage({ type: 'NOTION_AUTH_DONE', clientToken: ct }, window.location.origin);
-        } catch { /* opener may be gone */ }
-        window.close();
+    // Popup flow: try to send the token back to the opener via postMessage.
+    // Even if this fails (window.opener null due to iframe sandbox), the embed's
+    // backend poll will pick up the token within ~2 seconds.
+    if (_oauthParams.get('popup') === '1') {
+        if (window.opener) {
+            try {
+                window.opener.postMessage({ type: 'NOTION_AUTH_DONE', clientToken: ct }, window.location.origin);
+            } catch { /* opener may be gone */ }
+            window.close();
+        }
+        // If opener is null the popup stays open but the embed polls the backend.
+        // Show a brief message so the user knows they can close this tab.
+        else {
+            document.addEventListener('DOMContentLoaded', () => {}, { once: true });
+            setTimeout(() => {
+                const banner = document.createElement('div');
+                banner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#5a8a6a;color:white;text-align:center;padding:12px;font-family:sans-serif;font-size:14px;z-index:9999;';
+                banner.textContent = 'Connected! You can close this tab and return to Notion.';
+                document.body?.prepend(banner);
+            }, 100);
+        }
     }
 
     // Set a flag so checkNotionStatus knows this is a fresh OAuth return.
