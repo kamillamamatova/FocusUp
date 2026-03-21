@@ -112,6 +112,7 @@ router.get('/notion/callback', async (req, res) => {
     // The browser only ever holds a session cookie — the token stays server-side.
     try {
         saveToken(req.session.id, tokenData);
+        console.log('Token saved for workspace:', tokenData.workspace_name || tokenData.workspace_id || 'unknown');
     } catch (err) {
         console.error('Failed to persist token:', err.message);
         return res.redirect(`${base}/?notion_error=storage_error`);
@@ -121,12 +122,14 @@ router.get('/notion/callback', async (req, res) => {
     req.session.connected = true;
     req.session.save(err => {
         if (err) console.error('Session save error after token exchange:', err.message);
+        else console.log('Session saved, sid:', req.session.id);
         res.redirect(`${base}/?notion_connected=true`);
     });
 });
 
 // ── 3. Auth status ────────────────────────────────────────
 router.get('/status', (req, res) => {
+    console.log('Status check — sid:', req.session?.id, '| connected flag:', req.session?.connected);
     if (!req.session?.connected) {
         return res.json({ connected: false });
     }
