@@ -39,9 +39,16 @@ router.get('/', requireAuth, async (req, res) => {
             });
         }
 
+        // Diagnostic: log the raw title/icon/url for each result so the server log
+        // shows exactly what Notion returned for each database.
+        console.log(`Notion search returned ${(data.results || []).length} database(s):`);
+        for (const db of (data.results || [])) {
+            console.log(`  id=${db.id}  title=${JSON.stringify(db.title)}  icon=${JSON.stringify(db.icon)}  url=${db.url}`);
+        }
+
         const databases = (data.results || []).map(db => ({
             id:   db.id,
-            name: richTextToPlain(db.title) || 'Untitled',
+            name: databaseName(db),
             icon: iconToString(db.icon),
             url:  db.url || null,
         }));
@@ -67,14 +74,64 @@ router.post('/select', requireAuth, (req, res) => {
 
 // ── Helpers ───────────────────────────────────────────────
 
+/**
+ * Extract a human-readable name for a database object.
+ *
+ * Resolution order:
+ *   1. db.title array (the page-level header title — set when you type a name
+ *      in the big heading area at the top of the database page in Notion)
+ *   2. URL slug — Notion encodes the title in the URL path before the 32-char ID;
+ *      e.g. ".../My-Focus-Log-abc123..." → "My Focus Log"
+ *      Useful when db.title is empty but the database has a visible name in Notion.
+ *   3. "Untitled" — last resort fallback
+ */
+function databaseName(db) {
+    // 1. Explicit title field
+    const fromTitle = richTextToPlain(db.title);
+    if (fromTitle) return fromTitle;
+
+    // 2. Slug extracted from the Notion URL
+    const fromUrl = urlSlugToName(db.url);
+    if (fromUrl) return fromUrl;
+
+    return 'Untitled';
+}
+
 function richTextToPlain(arr) {
     if (!Array.isArray(arr)) return '';
     return arr.map(t => t.plain_text || '').join('').trim();
 }
 
+/**
+ * Extract a readable name from a Notion URL.
+ * Notion URLs look like: https://www.notion.so/workspace/My-Database-Name-<32hexchars>
+ * The last path segment is "<title-slug>-<id>" — we strip the trailing ID.
+ */
+function urlSlugToName(url) {
+    if (!url) return '';
+    try {
+        const segment = new URL(url).pathname.split('/').filter(Boolean).pop() || '';
+        // Remove the trailing 32-character hex ID (with or without a preceding dash).
+        const slug = segment.replace(/-?[0-9a-f]{32}$/i, '').replace(/-/g, ' ').trim();
+        return slug || '';
+    } catch {
+        return '';
+    }
+}
+
+/**
+ * Return a displayable icon string for a database.
+ * Notion icon types:
+ *   'emoji'    — plain emoji character, use directly
+ *   'external' — remote image URL; render as generic icon in the UI
+ *   'file'     — Notion-hosted image; render as generic icon in the UI
+ */
 function iconToString(icon) {
     if (!icon) return null;
     if (icon.type === 'emoji') return icon.emoji;
+    // External/file icons are image URLs — return a marker so the UI can
+    // show a generic placeholder instead of the invisible fallback book emoji.
+    if (icon.type === 'external' || icon.type === 'file') return '__image__';
     return null;
 }
 

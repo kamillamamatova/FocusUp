@@ -668,11 +668,23 @@ function renderDbPickerHTML() {
                 ${schemaNote}
             </div>`;
         }
-        const items = notionDbList.map(db => `
+        const items = notionDbList.map(db => {
+            // Icon: emoji string → show directly; '__image__' marker → generic db icon;
+            // null/absent → fallback book emoji.
+            const iconHtml = db.icon === '__image__' ? '&#128202;' :
+                             db.icon               ? escapeHtml(db.icon) :
+                             '&#128218;';
+            // When the name couldn't be resolved from the Notion title field, show
+            // a URL hint so the user can identify which database this is.
+            const urlHint = db.name === 'Untitled' && db.url
+                ? `<span style="font-size:11px;opacity:0.55;display:block;margin-top:2px;">${escapeHtml(db.url.replace('https://www.notion.so/', ''))}</span>`
+                : '';
+            return `
             <button type="button" class="db-item" data-db-id="${escapeAttr(db.id)}" data-db-name="${escapeAttr(db.name)}">
-              <span class="db-item-icon">${db.icon ? escapeHtml(db.icon) : '&#128218;'}</span>
-              <span class="db-item-name">${escapeHtml(db.name)}</span>
-            </button>`).join('');
+              <span class="db-item-icon">${iconHtml}</span>
+              <span class="db-item-name">${escapeHtml(db.name)}${urlHint}</span>
+            </button>`;
+        }).join('');
         return `<div class="db-picker-section">
             <div class="db-picker-title">Choose a database <span style="font-weight:400;opacity:0.7;">(optional)</span></div>
             <p class="db-picker-hint">Pick the Notion database (table) where your focus logs should be saved. FocusUp adds a row automatically each time you finish a day. You can change this any time.</p>

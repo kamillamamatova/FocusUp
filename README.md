@@ -56,9 +56,11 @@ Notion sync is completely optional. The timer works just as well without it.
 
 1. Open the **Notion Sync** section at the bottom of the app
 2. Click **Connect Notion** — you'll be taken to Notion to approve the connection
-3. During sign-in, Notion will ask which pages FocusUp can access — select at least one database (a table in your workspace)
+3. During sign-in, Notion will ask which pages FocusUp can access — select the **page that contains your database** (Notion grants access to all content under the pages you select)
 4. After approving, you'll be returned to FocusUp — your account is now connected
 5. Optionally, click **Show my Notion databases** and choose which database your logs should go to
+
+> **Tip:** If your database appears as "Untitled" in the picker, it means the database's title field is empty in Notion. Open the database in Notion, click the title area at the top of the page, and type a name — it will then appear correctly in FocusUp.
 
 Your database needs four columns with these exact names (any order is fine):
 
