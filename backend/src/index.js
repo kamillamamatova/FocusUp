@@ -32,9 +32,11 @@ const IS_PROD    = process.env.NODE_ENV === 'production';
 if (IS_PROD) app.set('trust proxy', 1);
 
 // ── CORS ──────────────────────────────────────────────────
+// Extract origins from FRONTEND_URL for CORS — strips any path component so
+// a full app URL like https://example.github.io/FocusUp works correctly.
 const allowedOrigins = process.env.FRONTEND_URL
     .split(',')
-    .map(s => s.trim())
+    .map(s => { try { return new URL(s.trim()).origin; } catch { return s.trim(); } })
     .filter(Boolean);
 
 app.use(cors({
