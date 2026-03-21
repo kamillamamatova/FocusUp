@@ -69,7 +69,9 @@ app.use(session({
     cookie: {
         httpOnly: true,
         secure:   IS_PROD,
-        sameSite: 'lax',
+        // SameSite=None is required for cross-site requests (frontend on github.io,
+        // backend on onrender.com). Requires Secure=true, which IS_PROD enforces.
+        sameSite: IS_PROD ? 'none' : 'lax',
         maxAge:   7 * 24 * 60 * 60 * 1000, // 1 week
     },
 }));
