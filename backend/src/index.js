@@ -6,7 +6,8 @@ const session = require('express-session');
 const cors    = require('cors');
 
 // Initialise DB before importing routes (creates schema on first run).
-const { close: closeDb } = require('./db');
+const { db, close: closeDb } = require('./db');
+const SQLiteStore             = require('./session-store');
 
 const authRouter      = require('./routes/auth');
 const syncRouter      = require('./routes/sync');
@@ -55,14 +56,10 @@ app.use(cors({
 app.use(express.json({ limit: '10kb' }));
 
 // ── Sessions ──────────────────────────────────────────────
-// PRODUCTION NOTES:
-//   1. Replace MemoryStore with connect-redis (or similar) so sessions survive
-//      restarts and scale across multiple instances.
-//   2. Set NODE_ENV=production so `secure: true` activates (HTTPS required).
-//   3. If the frontend is embedded in a Notion iframe, SameSite='lax' will block
-//      the session cookie from being sent in cross-site requests from the iframe.
-//      See DEPLOYMENT.md for the full iframe/cookie discussion.
+// SQLiteStore persists sessions in the same focusup.db database so they
+// survive backend restarts (e.g. Render sleep/wake cycles).
 app.use(session({
+    store:             new SQLiteStore(db),
     secret:            process.env.SESSION_SECRET,
     resave:            false,
     saveUninitialized: false,

@@ -119,4 +119,4 @@ function close() {
     db.close();
 }
 
-module.exports = { saveToken, getToken, deleteToken, saveSelectedDb, close };
+module.exports = { db, saveToken, getToken, deleteToken, saveSelectedDb, close };
