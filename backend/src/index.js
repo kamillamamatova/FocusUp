@@ -39,9 +39,9 @@ const allowedOrigins = process.env.FRONTEND_URL
 
 app.use(cors({
     origin: (origin, cb) => {
-        // Allow requests with no Origin header only in development (e.g. curl, file://).
-        // In production every browser request carries an Origin.
-        if (!origin && !IS_PROD) return cb(null, true);
+        // Allow requests with no Origin header (browser navigations, OAuth redirects).
+        // These are not cross-origin fetch requests and cannot carry CSRF risk.
+        if (!origin) return cb(null, true);
         if (origin && allowedOrigins.includes(origin)) return cb(null, true);
         cb(Object.assign(new Error(`CORS: origin not allowed: ${origin}`), { status: 403 }));
     },
