@@ -454,20 +454,29 @@ const friendlyNotionError = code =>
     NOTION_ERROR_LABELS[code] || 'Sign-in failed. Please try again.';
 
 async function checkNotionStatus() {
+    const justConnected = sessionStorage.getItem('notionJustConnected') === '1';
     try {
         const res = await fetch(`${BACKEND_URL}/api/auth/status`, {
             credentials: 'include',
-            signal: AbortSignal.timeout(4000),
+            signal: AbortSignal.timeout(6000),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-        notionStatus    = data.connected ? 'connected' : 'disconnected';
-        notionWorkspace = data.workspace_name || null;
+        sessionStorage.removeItem('notionJustConnected');
+        notionStatus     = data.connected ? 'connected' : 'disconnected';
+        notionWorkspace  = data.workspace_name || null;
         notionSelectedDb = (data.selected_db_id && data.selected_db_name)
             ? { id: data.selected_db_id, name: data.selected_db_name }
             : null;
     } catch {
-        notionStatus = 'unavailable';
+        if (justConnected) {
+            // OAuth just succeeded but the session cookie couldn't be read.
+            // Most likely cause: cross-site cookies blocked (Notion iframe embed or
+            // browser privacy settings). Don't silently fall back to disconnected.
+            notionStatus = 'iframe_limited';
+        } else {
+            notionStatus = 'unavailable';
+        }
     }
     renderNotionSync();
     render(); // refresh syncLabel pill
@@ -477,8 +486,32 @@ function renderNotionSync() {
     const panel = document.getElementById('notionSyncPanel');
     if (!panel) return;
 
-    if (notionStatus === 'checking') {
-        panel.innerHTML = `<p class="notion-desc">Checking connection&hellip;</p>`;
+    if (notionStatus === 'checking' || notionStatus === 'verifying') {
+        const msg = notionStatus === 'verifying'
+            ? 'Connected &mdash; verifying your workspace&hellip;'
+            : 'Checking connection&hellip;';
+        panel.innerHTML = `<p class="notion-desc">${msg}</p>`;
+        return;
+    }
+
+    if (notionStatus === 'iframe_limited') {
+        const isEmbedded = window !== window.top;
+        const reason = isEmbedded
+            ? 'Browsers block session cookies inside embedded pages. Open FocusUp in its own browser tab to use Notion sync.'
+            : 'Your browser may be blocking cross-site cookies. Try opening FocusUp directly in its own tab.';
+        panel.innerHTML = `
+            <p class="notion-desc"><strong>Connection succeeded</strong>, but it can't be confirmed ${isEmbedded ? 'inside the Notion embed' : 'right now'}.</p>
+            <p class="notion-desc-small">${reason}</p>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;">
+              <a href="${escapeAttr(location.href)}" target="_blank" rel="noopener" class="btn btn-primary" style="padding:7px 16px;font-size:13px;text-decoration:none;">Open in new tab</a>
+              <button type="button" class="btn btn-secondary" id="retryStatusBtn" style="padding:7px 16px;font-size:13px;">Try again</button>
+            </div>`;
+        document.getElementById('retryStatusBtn').addEventListener('click', () => {
+            sessionStorage.setItem('notionJustConnected', '1');
+            notionStatus = 'verifying';
+            renderNotionSync();
+            checkNotionStatus();
+        });
         return;
     }
 
@@ -660,7 +693,15 @@ const escapeHtml  = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>
 const escapeAttr  = s => s.replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
 function connectNotion() {
-    window.location.href = `${BACKEND_URL}/api/auth/notion`;
+    const url = `${BACKEND_URL}/api/auth/notion`;
+    // Navigate at the top-level window so the OAuth flow works correctly
+    // even when the app is embedded in a Notion iframe.
+    try {
+        window.top.location.href = url;
+    } catch {
+        // Cross-origin iframe restriction (shouldn't happen here) — fall back.
+        window.location.href = url;
+    }
 }
 
 async function disconnectNotion() {
@@ -959,7 +1000,11 @@ if (_oauthParams.has('notion_error')) {
     notionErrorMsg = friendlyNotionError(_oauthParams.get('notion_error'));
     history.replaceState({}, '', location.pathname);
 } else if (_oauthParams.has('notion_connected')) {
-    // Clear the URL immediately; status confirmed by checkNotionStatus below
+    // Set a flag so checkNotionStatus knows this is a fresh OAuth return.
+    // If the status check then fails, it shows a specific recovery message
+    // rather than silently falling back to "Connect Notion".
+    sessionStorage.setItem('notionJustConnected', '1');
+    notionStatus = 'verifying';
     history.replaceState({}, '', location.pathname);
 }
 
