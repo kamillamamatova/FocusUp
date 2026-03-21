@@ -18,9 +18,12 @@ const { saveToken, getToken, deleteToken } = require('../db');
 const NOTION_OAUTH_BASE = 'https://api.notion.com/v1/oauth/authorize';
 const NOTION_TOKEN_URL  = 'https://api.notion.com/v1/oauth/token';
 
-// The primary frontend origin — used as the redirect target after OAuth.
-// When FRONTEND_URL contains multiple comma-separated origins, use the first.
-const frontendBase = () => process.env.FRONTEND_URL.split(',')[0].trim();
+// The primary frontend URL — used as the redirect target after OAuth.
+// Strips trailing slash so we can consistently append /?param=value.
+const frontendBase = () => {
+    const url = process.env.FRONTEND_URL.split(',')[0].trim();
+    return url.endsWith('/') ? url.slice(0, -1) : url;
+};
 
 // ── 1. Initiate OAuth ─────────────────────────────────────
 router.get('/notion', (req, res) => {
@@ -55,11 +58,11 @@ router.get('/notion/callback', async (req, res) => {
     // Notion returned an error (e.g. user clicked "Cancel").
     if (error) {
         console.warn('Notion OAuth denied by user:', error);
-        return res.redirect(`${base}?notion_error=${encodeURIComponent(error)}`);
+        return res.redirect(`${base}/?notion_error=${encodeURIComponent(error)}`);
     }
 
     if (!code) {
-        return res.redirect(`${base}?notion_error=missing_code`);
+        return res.redirect(`${base}/?notion_error=missing_code`);
     }
 
     // CSRF check: state in query must match what we stored in the session.
@@ -67,7 +70,7 @@ router.get('/notion/callback', async (req, res) => {
     // this is a browser flow so the user should see a proper page.
     if (!req.session.oauthState || req.session.oauthState !== state) {
         console.warn('OAuth state mismatch — possible CSRF or expired session');
-        return res.redirect(`${base}?notion_error=state_mismatch`);
+        return res.redirect(`${base}/?notion_error=state_mismatch`);
     }
     delete req.session.oauthState;
 
@@ -98,11 +101,11 @@ router.get('/notion/callback', async (req, res) => {
             // Log only the error code/message, not the full body which may contain tokens.
             console.error('Notion token exchange failed — status:', tokenRes.status, 'code:', tokenData?.code);
             const notionCode = tokenData?.code || 'token_exchange_failed';
-            return res.redirect(`${base}?notion_error=${encodeURIComponent(notionCode)}`);
+            return res.redirect(`${base}/?notion_error=${encodeURIComponent(notionCode)}`);
         }
     } catch (err) {
         console.error('Token exchange network error:', err.message);
-        return res.redirect(`${base}?notion_error=network_error`);
+        return res.redirect(`${base}/?notion_error=network_error`);
     }
 
     // Persist token in SQLite, keyed by express-session ID.
@@ -111,14 +114,14 @@ router.get('/notion/callback', async (req, res) => {
         saveToken(req.session.id, tokenData);
     } catch (err) {
         console.error('Failed to persist token:', err.message);
-        return res.redirect(`${base}?notion_error=storage_error`);
+        return res.redirect(`${base}/?notion_error=storage_error`);
     }
 
     // Mark session as connected (cheap flag — avoids a DB lookup on /status).
     req.session.connected = true;
     req.session.save(err => {
         if (err) console.error('Session save error after token exchange:', err.message);
-        res.redirect(`${base}?notion_connected=true`);
+        res.redirect(`${base}/?notion_connected=true`);
     });
 });
 
