@@ -60,6 +60,16 @@ db.exec(`
     )
 `);
 
+// Persistent timer/history state keyed by Notion workspace_id.
+// Using workspace_id (not session_id) means the data survives re-authentication.
+db.exec(`
+    CREATE TABLE IF NOT EXISTS app_state (
+        workspace_id TEXT    PRIMARY KEY,
+        state_json   TEXT    NOT NULL,
+        updated_at   INTEGER NOT NULL
+    )
+`);
+
 // ── Public API ────────────────────────────────────────────
 
 /**
@@ -164,9 +174,33 @@ function consumePendingAuth(embedKey) {
     return getToken(row.session_id);
 }
 
+/**
+ * Upsert the durable timer/history state for a Notion workspace.
+ * @param {string} workspaceId — Notion workspace UUID
+ * @param {string} stateJson   — JSON-stringified { goalMins, history, bestStreak }
+ */
+function saveAppState(workspaceId, stateJson) {
+    db.prepare(`
+        INSERT INTO app_state (workspace_id, state_json, updated_at)
+        VALUES (?, ?, ?)
+        ON CONFLICT(workspace_id) DO UPDATE SET
+            state_json = excluded.state_json,
+            updated_at = excluded.updated_at
+    `).run(workspaceId, stateJson, Date.now());
+}
+
+/**
+ * Retrieve the durable state for a workspace, or null if not found.
+ * @param {string} workspaceId
+ * @returns {{ state_json: string, updated_at: number } | null}
+ */
+function getAppState(workspaceId) {
+    return db.prepare('SELECT state_json, updated_at FROM app_state WHERE workspace_id = ?').get(workspaceId) || null;
+}
+
 /** Graceful shutdown — lets the process exit cleanly. */
 function close() {
     db.close();
 }
 
-module.exports = { db, saveToken, getToken, deleteToken, saveSelectedDb, saveClientToken, getTokenByClientToken, savePendingAuth, consumePendingAuth, close };
+module.exports = { db, saveToken, getToken, deleteToken, saveSelectedDb, saveClientToken, getTokenByClientToken, savePendingAuth, consumePendingAuth, saveAppState, getAppState, close };

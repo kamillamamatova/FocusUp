@@ -29,11 +29,11 @@ Count up toward a daily goal, finish your day with one click, and keep your stre
 
 ### Your data
 
-All your timer data is saved in **this browser** — nothing is sent anywhere unless you connect Notion.
+Your timer data is always saved locally in this browser. When you connect Notion, your history and goal also sync to the backend, making them available on any browser or device that uses the same Notion workspace.
 
-- Switching to a different browser or device starts from zero
-- Use **Data Export / Import** to back up your data or move it to another device
-- Paste your exported data into the import box on the new device and click Import
+- **With Notion connected**: history and your goal setting sync automatically across browsers and devices
+- **Without Notion**: data stays in this browser only
+- Use **Data Export / Import** to back up your data or migrate it manually if needed
 
 ### How Notion sync works
 
@@ -74,7 +74,7 @@ FocusUp fills these in automatically every time you finish a day — you never n
 3. Paste your hosted URL and click **Embed link**
 4. Resize the block, 600 px tall is a good starting point
 
-> **Note:** Your timer data is stored in the browser the Notion app runs in, not in Notion itself. Each browser or device has its own independent data.
+> **Tip:** When you connect Notion, your focus history and goal setting sync automatically across all browsers and devices that use the same Notion workspace. Without a Notion connection, data stays local to the current browser.
 
 ---
 

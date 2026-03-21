@@ -294,7 +294,7 @@
           <span id="dataStatus" style="font-size:13px;"></span>
         </div>
         <textarea class="data-textarea" id="dataTextarea" placeholder="Exported JSON will appear here, or paste JSON to import..."></textarea>
-        <p class="export-hint">Exports/imports localStorage key <strong>focusTimer.v1</strong>. Use this to back up or transfer your data.</p>
+        <p class="export-hint">Exports/imports your full timer data as JSON. Use this to back up or manually transfer your data to another browser or device. When Notion is connected, history syncs automatically.</p>
       </div>
     </div>
 
@@ -316,7 +316,7 @@
 
   <div class="footer">
     <p>To add FocusUp to a Notion page: host it at a public URL, then use /embed</p>
-    <p>Your timer data is saved in this browser, switching browsers or devices starts fresh</p>
+    <p>Connect Notion to sync your history and goal across browsers and devices &mdash; without it, data stays in this browser</p>
   </div>
 
 </div><!-- /container -->
@@ -478,6 +478,9 @@ async function checkNotionStatus() {
         notionSelectedDb = (data.selected_db_id && data.selected_db_name)
             ? { id: data.selected_db_id, name: data.selected_db_name }
             : null;
+        // Pull server state in the background when connected so history and
+        // goal stay in sync across browsers and devices.
+        if (data.connected) pullAndMergeState();
     } catch {
         if (justConnected) {
             // OAuth just succeeded but the session cookie couldn't be read.
@@ -521,9 +524,26 @@ function renderNotionSync() {
     }
 
     if (notionStatus === 'unavailable') {
+        const hasToken = !!getClientToken();
+        const connectLine = !hasToken ? `
+            <button type="button" class="btn btn-primary" id="connectNotionBtn" style="gap:8px;margin-top:8px;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              Connect Notion
+            </button>` : '';
         panel.innerHTML = `
-            <p class="notion-desc">Notion sync is not available right now. Your timer and history are still saved as normal.</p>
-            <p class="notion-desc-small">If you set up the sync service, make sure it is running and try refreshing.</p>`;
+            <p class="notion-desc">Could not reach the sync service right now. Your timer and history are still saved locally.</p>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <button type="button" class="btn btn-secondary" id="retryStatusBtn" style="padding:7px 16px;font-size:13px;">Try again</button>
+              ${connectLine}
+            </div>`;
+        document.getElementById('retryStatusBtn').addEventListener('click', () => {
+            notionStatus = 'checking';
+            renderNotionSync();
+            checkNotionStatus();
+        });
+        if (!hasToken) {
+            document.getElementById('connectNotionBtn').addEventListener('click', connectNotion);
+        }
         return;
     }
 
@@ -767,6 +787,81 @@ async function disconnectNotion() {
     render();
 }
 
+// ── Server state sync (history + goal across browsers/devices) ────────────
+// Durable fields (history, goalMins, bestStreak) are mirrored to the backend
+// when Notion is connected.  Ephemeral fields (active sessions) stay local.
+
+let _pushPending = false;
+
+async function pushStateToServer() {
+    if (notionStatus !== 'connected') return;
+    if (_pushPending) return;
+    _pushPending = true;
+    try {
+        await fetch(`${BACKEND_URL}/api/state`, {
+            method:      'POST',
+            credentials: 'include',
+            headers:     { 'Content-Type': 'application/json', ...authHeaders() },
+            body:        JSON.stringify({ state: {
+                goalMins:   state.goalMins,
+                history:    state.history,
+                bestStreak: state.bestStreak,
+            }}),
+        });
+    } catch { /* non-fatal — localStorage is source of truth */ }
+    _pushPending = false;
+}
+
+async function pullAndMergeState() {
+    if (notionStatus !== 'connected') return;
+    try {
+        const res = await fetch(`${BACKEND_URL}/api/state`, {
+            credentials: 'include',
+            headers:     authHeaders(),
+            signal:      AbortSignal.timeout(6000),
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.state) {
+            _mergeServerState(data.state);
+            // Push merged result back so the server has the union of both sides.
+            await pushStateToServer();
+        } else {
+            // Server has no state yet — seed it from local.
+            await pushStateToServer();
+        }
+    } catch { /* non-fatal */ }
+}
+
+function _mergeServerState(serverState) {
+    let changed = false;
+
+    // Merge history: add any server entries not present locally.
+    // Local entries take precedence so a device that just finished a day
+    // is never overwritten by a stale server copy.
+    if (serverState.history && typeof serverState.history === 'object' && !Array.isArray(serverState.history)) {
+        for (const [date, rec] of Object.entries(serverState.history)) {
+            if (!state.history[date]) {
+                state.history[date] = rec;
+                changed = true;
+            }
+        }
+    }
+
+    // Sync goal: server wins so the user's preference propagates to all devices.
+    if (typeof serverState.goalMins === 'number' && serverState.goalMins >= 1 &&
+        serverState.goalMins !== state.goalMins) {
+        state.goalMins = serverState.goalMins;
+        changed = true;
+    }
+
+    if (changed) {
+        saveState();
+        recomputeBestStreak();
+        render();
+    }
+}
+
 // ── App state ──────────────────────────────────────────────
 const STORE_KEY = 'focusTimer.v1';
 const loadState = () => { try { return JSON.parse(localStorage.getItem(STORE_KEY) || '{}'); } catch { return {}; } };
@@ -783,6 +878,7 @@ saveState();
 window.addEventListener('beforeunload', saveState);
 document.addEventListener('visibilitychange', () => { if (document.hidden) saveState(); });
 setInterval(saveState, 30000);
+setInterval(pushStateToServer, 5 * 60 * 1000); // backup to server every 5 min when connected
 window.addEventListener('storage', e => {
     if (e.key === STORE_KEY && e.newValue) { try { state = JSON.parse(e.newValue); render(); } catch {} }
 });
@@ -876,6 +972,9 @@ const finishDay = async () => {
     recomputeBestStreak();
     alert(`Logged ${mins} min for ${date}${met ? ' — goal met!' : ''}.`);
     render();
+
+    // Push durable state to server so other devices see the new history entry.
+    pushStateToServer();
 
     // ── Notion sync — fire only when fully configured ───────
     const syncEl = document.getElementById('syncStatus');
@@ -1003,6 +1102,7 @@ document.getElementById('goalInput').addEventListener('change', () => {
     state.goalMins = Math.max(1, Math.floor(Number(document.getElementById('goalInput').value) || 1));
     saveState();
     render();
+    pushStateToServer();
 });
 
 // ── Export / Import ────────────────────────────────────────

@@ -12,6 +12,7 @@ const SQLiteStore             = require('./session-store');
 const authRouter      = require('./routes/auth');
 const syncRouter      = require('./routes/sync');
 const databasesRouter = require('./routes/databases');
+const stateRouter     = require('./routes/state');
 
 // ── Validate required env vars at startup ─────────────────
 const REQUIRED = ['SESSION_SECRET', 'NOTION_CLIENT_ID', 'NOTION_CLIENT_SECRET', 'NOTION_REDIRECT_URI', 'FRONTEND_URL'];
@@ -83,6 +84,7 @@ app.use((req, _res, next) => {
 app.use('/api/auth',      authRouter);
 app.use('/api/sync',      syncRouter);
 app.use('/api/databases', databasesRouter);
+app.use('/api/state',     stateRouter);
 
 app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -114,6 +116,8 @@ const server = app.listen(PORT, () => {
     console.log(`  List DBs:     GET  /api/databases`);
     console.log(`  Select DB:    POST /api/databases/select`);
     console.log(`  Sync:         POST /api/sync`);
+    console.log(`  State get:    GET  /api/state`);
+    console.log(`  State set:    POST /api/state`);
 });
 
 // ── Graceful shutdown ─────────────────────────────────────
