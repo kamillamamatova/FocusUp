@@ -527,14 +527,19 @@ function renderNotionSync() {
             ? `Connected to <strong>${notionWorkspace}</strong>`
             : 'Connected to Notion';
         const dbSection = renderDbPickerHTML();
+        const successNote = notionSelectedDb ? '' : `
+            <p class="notion-desc" style="margin-top:10px;margin-bottom:0;">
+                You're all set — your Notion account is linked and your timer works as normal.
+            </p>`;
         panel.innerHTML = `
             <div class="notion-connected-row">
               <span class="notion-workspace-badge">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
                 ${wsLabel}
               </span>
-              <button type="button" class="btn btn-secondary" id="disconnectNotionBtn" style="padding:7px 16px;font-size:13px;">Disconnect Notion</button>
+              <button type="button" class="btn btn-secondary" id="disconnectNotionBtn" style="padding:7px 16px;font-size:13px;">Disconnect</button>
             </div>
+            ${successNote}
             ${dbSection}`;
         document.getElementById('disconnectNotionBtn').addEventListener('click', disconnectNotion);
         wireDbPickerEvents();
@@ -622,20 +627,20 @@ function renderDbPickerHTML() {
               <span class="db-item-name">${escapeHtml(db.name)}</span>
             </button>`).join('');
         return `<div class="db-picker-section">
-            <div class="db-picker-title">Pick a Notion database</div>
-            <p class="db-picker-hint">Choose where FocusUp should save your daily logs. You can change this any time.</p>
+            <div class="db-picker-title">Choose a database <span style="font-weight:400;opacity:0.7;">(optional)</span></div>
+            <p class="db-picker-hint">FocusUp will save a record here each time you finish a day. You can change this any time.</p>
             <div class="db-list">${items}</div>
             ${schemaNote}
         </div>`;
     }
 
-    // Not yet loaded — show prompt
+    // Not yet loaded — show optional prompt
     return `<div class="db-picker-section">
-        <div class="db-picker-title">Pick a Notion database</div>
-        <p class="notion-desc" style="margin-top:8px;">Choose which Notion database your daily focus logs should be saved to.</p>
+        <div class="db-picker-title">Want automatic daily logs? <span style="font-weight:400;opacity:0.7;">(optional)</span></div>
+        <p class="notion-desc" style="margin-top:8px;">Link a Notion database and FocusUp will save a record there each time you finish a day. You can skip this and add it later.</p>
         <button type="button" class="btn btn-secondary" id="loadDbsBtn" style="padding:7px 16px;font-size:13px;gap:8px;">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></svg>
-          Show my Notion databases
+          Choose a database
         </button>
     </div>`;
 }
