@@ -575,7 +575,7 @@ function renderNotionSync() {
 function renderDbPickerHTML() {
     const checkSVG = `<svg class="db-item-check" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>`;
     const schemaNote = `<p class="db-schema-note">
-        Your database needs columns named <strong>Date</strong>, <strong>Minutes</strong>, <strong>Goal</strong>, and <strong>Met</strong>. FocusUp fills these in automatically each day.
+        Your database needs four columns named exactly: <strong>Date</strong>, <strong>Minutes</strong>, <strong>Goal</strong>, and <strong>Met</strong>. FocusUp fills them in automatically — you don't need to type anything.
     </p>`;
 
     // Already have a selected DB
@@ -614,8 +614,8 @@ function renderDbPickerHTML() {
     if (notionDbList !== null) {
         if (notionDbList.length === 0) {
             return `<div class="db-picker-section">
-                <div class="db-picker-title">Pick a Notion database</div>
-                <p class="notion-desc" style="margin-top:8px;">No databases were found in your workspace. During sign-in, Notion asks which pages to share with FocusUp — make sure to include at least one database.</p>
+                <div class="db-picker-title">No databases found</div>
+                <p class="notion-desc" style="margin-top:8px;">No Notion databases were shared with FocusUp. When you signed in, Notion asked which pages to give access to — make sure you selected at least one database (a table in Notion). You can sign in again to update your selection.</p>
                 <button type="button" class="btn btn-secondary" id="reconnectBtn" style="padding:7px 16px;font-size:13px;margin-right:8px;">Sign in again</button>
                 <button type="button" class="btn btn-secondary" id="loadDbsBtn" style="padding:7px 16px;font-size:13px;">Refresh</button>
                 ${schemaNote}
@@ -628,7 +628,7 @@ function renderDbPickerHTML() {
             </button>`).join('');
         return `<div class="db-picker-section">
             <div class="db-picker-title">Choose a database <span style="font-weight:400;opacity:0.7;">(optional)</span></div>
-            <p class="db-picker-hint">FocusUp will save a record here each time you finish a day. You can change this any time.</p>
+            <p class="db-picker-hint">Pick the Notion database (table) where your focus logs should be saved. FocusUp adds a row automatically each time you finish a day. You can change this any time.</p>
             <div class="db-list">${items}</div>
             ${schemaNote}
         </div>`;
@@ -636,11 +636,11 @@ function renderDbPickerHTML() {
 
     // Not yet loaded — show optional prompt
     return `<div class="db-picker-section">
-        <div class="db-picker-title">Want automatic daily logs? <span style="font-weight:400;opacity:0.7;">(optional)</span></div>
-        <p class="notion-desc" style="margin-top:8px;">Link a Notion database and FocusUp will save a record there each time you finish a day. You can skip this and add it later.</p>
+        <div class="db-picker-title">Save logs to Notion automatically <span style="font-weight:400;opacity:0.7;">(optional)</span></div>
+        <p class="notion-desc" style="margin-top:8px;">A Notion database is just a table — it's where your focus history gets saved. Choose one below and FocusUp will add a row every time you finish a day. You can skip this for now and set it up later.</p>
         <button type="button" class="btn btn-secondary" id="loadDbsBtn" style="padding:7px 16px;font-size:13px;gap:8px;">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></svg>
-          Choose a database
+          Show my Notion databases
         </button>
     </div>`;
 }

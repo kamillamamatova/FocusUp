@@ -37,11 +37,13 @@ All your timer data is saved in **this browser** — nothing is sent anywhere un
 
 ### How Notion sync works
 
-When you connect Notion, FocusUp saves a record to your Notion database every time you click **Finish Day**. Here's what happens:
+When you connect Notion, FocusUp saves a record to your Notion database every time you click **Finish Day**. A Notion database is just a table — think of it as a spreadsheet inside Notion where your focus history is stored.
 
-1. You click **Finish Day** - your data is saved locally first, so nothing is ever lost
+Here's what happens:
+
+1. You click **Finish Day** — your data is saved locally first, so nothing is ever lost
 2. FocusUp sends the day's summary to Notion in the background
-3. A new row appears in your chosen Notion database with the date, minutes focused, your goal, and whether you met it
+3. A new row appears in your chosen database with the date, minutes focused, your goal, and whether you met it
 4. If you click Finish Day again for the same day (e.g. to correct a mistake), the existing row is updated rather than duplicated
 
 Notion sync is completely optional. The timer works just as well without it.
@@ -49,12 +51,12 @@ Notion sync is completely optional. The timer works just as well without it.
 ### Connecting Notion
 
 1. Open the **Notion Sync** section at the bottom of the app
-2. Click **Connect Notion**, you'll be taken to Notion to approve the connection
-3. During sign-in, Notion will ask which pages FocusUp can access, select at least one database
-4. After approving, you'll be returned to FocusUp
-5. Click **Show my Notion databases** and choose where your logs should go
+2. Click **Connect Notion** — you'll be taken to Notion to approve the connection
+3. During sign-in, Notion will ask which pages FocusUp can access — select at least one database (a table in your workspace)
+4. After approving, you'll be returned to FocusUp — your account is now connected
+5. Optionally, click **Show my Notion databases** and choose which database your logs should go to
 
-Your Notion database needs these four columns (exact names, any order):
+Your database needs four columns with these exact names (any order is fine):
 
 | Column name | Type |
 |---|---|
@@ -63,7 +65,7 @@ Your Notion database needs these four columns (exact names, any order):
 | Goal | Number |
 | Met | Checkbox |
 
-FocusUp fills these in automatically, you never need to edit them by hand.
+FocusUp fills these in automatically every time you finish a day — you never need to edit them by hand. If you don't have a database yet, create one in Notion by searching for "database" and adding a new full-page database.
 
 ### Embedding in Notion
 
