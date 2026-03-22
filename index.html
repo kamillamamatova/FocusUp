@@ -107,6 +107,28 @@
     .goal-progress-fill { height: 100%; width: 0%; max-width: 100%; background: var(--primary); transition: width 0.4s ease, background 0.4s ease; }
     .goal-progress-fill.met { background: var(--success); }
 
+    /* Timer mode toggle */
+    .timer-mode-toggle { display: flex; justify-content: center; margin-bottom: 24px; }
+    .timer-mode-seg { display: flex; background: var(--input-bg); border-radius: 10px; padding: 3px; gap: 2px; }
+    .timer-mode-btn { padding: 6px 18px; border-radius: 8px; border: none; background: none; cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 500; color: var(--text-muted); transition: all 0.15s; white-space: nowrap; }
+    .timer-mode-btn.active { background: var(--card); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+
+    /* Pomodoro view */
+    .pomo-phase-row { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 12px; }
+    .pomo-phase-badge { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; padding: 3px 10px; border-radius: 20px; background: var(--input-bg); color: var(--text-muted); }
+    .pomo-phase-badge.work-phase { background: var(--warning-bg); color: var(--primary); border: 1px solid var(--warning-border); }
+    .pomo-phase-badge.break-phase { background: var(--success-bg); color: var(--success); border: 1px solid var(--success-border); }
+    .pomo-cycle-info { font-size: 12px; color: var(--accent); }
+    .pomo-countdown-wrap { text-align: center; margin-bottom: 20px; }
+    .pomo-countdown { font-family: 'DM Mono', monospace; font-size: 52px; font-weight: 500; letter-spacing: 0.04em; font-variant-numeric: tabular-nums; color: var(--primary); line-height: 1; margin-bottom: 6px; }
+    .pomo-countdown.break-phase { color: var(--success); }
+    .pomo-focus-sub { font-size: 12px; color: var(--text-muted); }
+    .pomo-dur-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
+    .pomo-dur-group { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .pomo-dur-label { font-size: 11px; color: var(--accent); white-space: nowrap; }
+    .pomo-dur-input { width: 56px; text-align: center; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text); font-family: inherit; font-size: 13px; outline: none; transition: box-shadow 0.2s; }
+    .pomo-dur-input:focus { box-shadow: 0 0 0 2px var(--primary); }
+
     /* Buttons */
     .btn { display: inline-flex; align-items: center; gap: 8px; padding: 11px 22px; border-radius: 50px; border: none; font-family: inherit; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.15s; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
     .btn:active { transform: scale(0.96); }
@@ -277,34 +299,75 @@
 
     <!-- Timer -->
     <div class="timer-section">
-      <div class="timer-grid">
-        <div class="timer-col">
-          <div class="timer-label">Elapsed</div>
-          <div class="timer-digits" id="elapsedDisplay">00:00:00</div>
-        </div>
-        <div class="timer-col">
-          <div class="timer-label">Remaining</div>
-          <div class="timer-digits remaining" id="remainingDisplay">02:00:00</div>
-        </div>
-        <div class="timer-col">
-          <div class="timer-label">Overtime</div>
-          <div class="timer-digits overtime" id="overtimeDisplay">00:00:00</div>
+      <div class="timer-mode-toggle">
+        <div class="timer-mode-seg">
+          <button type="button" class="timer-mode-btn active" id="modeRegularBtn">Regular</button>
+          <button type="button" class="timer-mode-btn" id="modePomodoroBtn">Pomodoro</button>
         </div>
       </div>
-      <div class="controls">
-        <button type="button" class="btn btn-primary" id="startPauseBtn">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="startPauseIcon"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-          <span id="startPauseLabel">Start</span>
-        </button>
-        <button type="button" class="btn btn-secondary" id="resetBtn">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-          Reset
-        </button>
-        <button type="button" class="btn btn-success" id="finishDayBtn">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
-          Finish Day
-        </button>
+
+      <!-- Regular view -->
+      <div id="regularView">
+        <div class="timer-grid">
+          <div class="timer-col">
+            <div class="timer-label">Elapsed</div>
+            <div class="timer-digits" id="elapsedDisplay">00:00:00</div>
+          </div>
+          <div class="timer-col">
+            <div class="timer-label">Remaining</div>
+            <div class="timer-digits remaining" id="remainingDisplay">02:00:00</div>
+          </div>
+          <div class="timer-col">
+            <div class="timer-label">Overtime</div>
+            <div class="timer-digits overtime" id="overtimeDisplay">00:00:00</div>
+          </div>
+        </div>
+        <div class="controls">
+          <button type="button" class="btn btn-primary" id="startPauseBtn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="startPauseIcon"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            <span id="startPauseLabel">Start</span>
+          </button>
+          <button type="button" class="btn btn-secondary" id="resetBtn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            Reset
+          </button>
+          <button type="button" class="btn btn-success" id="finishDayBtn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+            Finish Day
+          </button>
+        </div>
       </div>
+
+      <!-- Pomodoro view -->
+      <div id="pomodoroView" style="display:none;">
+        <div class="pomo-phase-row">
+          <span class="pomo-phase-badge work-phase" id="pomoPhaseLabel">Work</span>
+          <span class="pomo-cycle-info" id="pomoCycleInfo">Session 1 of 4</span>
+        </div>
+        <div class="pomo-countdown-wrap">
+          <div class="pomo-countdown" id="pomoCountdown">25:00</div>
+          <div class="pomo-focus-sub" id="pomoFocusSub">Focus today: 00:00:00</div>
+        </div>
+        <div class="controls">
+          <button type="button" class="btn btn-primary" id="pomoStartPauseBtn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="pomoStartPauseIcon"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            <span id="pomoStartPauseLabel">Start</span>
+          </button>
+          <button type="button" class="btn btn-secondary" id="pomoSkipBtn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
+            Skip
+          </button>
+          <button type="button" class="btn btn-secondary" id="pomoResetBtn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            Reset
+          </button>
+          <button type="button" class="btn btn-success" id="pomoFinishDayBtn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+            Finish Day
+          </button>
+        </div>
+      </div>
+
       <div class="goal-progress-wrap">
         <div class="goal-progress-bar">
           <div class="goal-progress-fill" id="goalProgressFill"></div>
@@ -470,6 +533,26 @@
           </div>
         </div>
 
+        <p class="hint-section-label" style="margin-top:16px;">Pomodoro durations</p>
+        <div class="pomo-dur-row">
+          <div class="pomo-dur-group">
+            <label class="pomo-dur-label" for="pomoDurWork">Work (min)</label>
+            <input type="number" class="pomo-dur-input" id="pomoDurWork" min="1" max="120" value="25">
+          </div>
+          <div class="pomo-dur-group">
+            <label class="pomo-dur-label" for="pomoDurShort">Short break</label>
+            <input type="number" class="pomo-dur-input" id="pomoDurShort" min="1" max="60" value="5">
+          </div>
+          <div class="pomo-dur-group">
+            <label class="pomo-dur-label" for="pomoDurLong">Long break</label>
+            <input type="number" class="pomo-dur-input" id="pomoDurLong" min="1" max="120" value="15">
+          </div>
+          <div class="pomo-dur-group">
+            <label class="pomo-dur-label" for="pomoDurLongAfter">Sessions before long</label>
+            <input type="number" class="pomo-dur-input" id="pomoDurLongAfter" min="1" max="10" value="4">
+          </div>
+        </div>
+
         <p class="hint-section-label" style="margin-top:16px;">Account & sync</p>
         <div class="hints-grid">
           <div class="hint-item">
@@ -589,6 +672,11 @@ const SETTINGS_KEY = 'focusTimerSettings.v1';
 function loadSettings() { try { return JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'); } catch { return {}; } }
 function saveSettings(s) { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); }
 let settings = loadSettings();
+settings.timerMode          ??= 'regular';
+settings.pomodoroWork       ??= 25;
+settings.pomodoroShortBreak ??= 5;
+settings.pomodoroLongBreak  ??= 15;
+settings.pomodoroLongAfter  ??= 4;
 
 // ── Theme definitions ──────────────────────────────────────
 const lightThemes = {
@@ -1432,7 +1520,20 @@ window.addEventListener('storage', e => {
 // ── Daily rollover ─────────────────────────────────────────
 const ensureToday = () => {
     const t = todayKey();
-    if (state.lastOpened !== t) { state.sessions = []; state.lastOpened = t; saveState(); }
+    if (state.lastOpened !== t) {
+        state.sessions = [];
+        state.lastOpened = t;
+        saveState();
+        if (typeof pomoState !== 'undefined') {
+            pomoState.phase = 'work';
+            pomoState.completedInRound = 0;
+            pomoState.totalToday = 0;
+            pomoState.running = false;
+            pomoState.phaseStartMs = null;
+            pomoState.pausedRemMs = null;
+            savePomoState();
+        }
+    }
 };
 ensureToday();
 
@@ -1477,6 +1578,119 @@ const resetToday = () => {
     render();
 };
 
+// ── Pomodoro state ─────────────────────────────────────────
+const POMO_KEY = 'focusTimer.pomo.v1';
+const savePomoState = () => localStorage.setItem(POMO_KEY, JSON.stringify(pomoState));
+let pomoState = (() => { try { return JSON.parse(localStorage.getItem(POMO_KEY) || '{}'); } catch { return {}; } })();
+pomoState.phase            ??= 'work';
+pomoState.completedInRound ??= 0;
+pomoState.totalToday       ??= 0;
+pomoState.running          ??= false;
+pomoState.phaseStartMs     ??= null;
+pomoState.pausedRemMs      ??= null;
+
+const pomoPhaseDurationMs = () => {
+    const mins = pomoState.phase === 'work'  ? (settings.pomodoroWork       || 25)
+               : pomoState.phase === 'short' ? (settings.pomodoroShortBreak || 5)
+               :                               (settings.pomodoroLongBreak  || 15);
+    return mins * 60 * 1000;
+};
+
+const pomoRemainingMs = () => {
+    if (!pomoState.running)
+        return pomoState.pausedRemMs !== null ? pomoState.pausedRemMs : pomoPhaseDurationMs();
+    return Math.max(0, pomoPhaseDurationMs() - (Date.now() - pomoState.phaseStartMs));
+};
+
+const fmtPomo = ms => {
+    const s = Math.max(0, Math.ceil(ms / 1000));
+    const m = Math.floor(s / 60);
+    return `${String(m).padStart(2,'0')}:${String(s % 60).padStart(2,'0')}`;
+};
+
+const ensureTick = () => {
+    if (tickHandle) clearInterval(tickHandle);
+    tickHandle = setInterval(render, 1000);
+};
+
+const pomoStart = () => {
+    if (pomoState.running) return;
+    ensureToday();
+    const remMs = pomoState.pausedRemMs !== null ? pomoState.pausedRemMs : pomoPhaseDurationMs();
+    pomoState.phaseStartMs = Date.now() - (pomoPhaseDurationMs() - remMs);
+    pomoState.pausedRemMs  = null;
+    pomoState.running      = true;
+    if (pomoState.phase === 'work') {
+        startTimer();
+    } else {
+        ensureTick();
+        render();
+    }
+    savePomoState();
+};
+
+const pomoPause = () => {
+    if (!pomoState.running) return;
+    pomoState.pausedRemMs = pomoRemainingMs();
+    pomoState.running     = false;
+    if (pomoState.phase === 'work') {
+        pauseTimer();
+    } else {
+        clearInterval(tickHandle);
+        tickHandle = null;
+        render();
+    }
+    savePomoState();
+};
+
+const pomoPhaseComplete = (countWork = true) => {
+    const longAfter = settings.pomodoroLongAfter || 4;
+    if (pomoState.phase === 'work') {
+        const open = state.sessions.find(s => s.end == null);
+        if (open) open.end = Date.now();
+        ticking = false;
+        clearInterval(tickHandle);
+        tickHandle = null;
+        saveState();
+        if (countWork) {
+            pomoState.completedInRound++;
+            pomoState.totalToday++;
+            if (pomoState.completedInRound >= longAfter) {
+                pomoState.phase = 'long';
+                pomoState.completedInRound = 0;
+            } else {
+                pomoState.phase = 'short';
+            }
+        } else {
+            pomoState.phase = 'short';
+        }
+    } else {
+        pomoState.phase = 'work';
+    }
+    pomoState.running      = false;
+    pomoState.phaseStartMs = null;
+    pomoState.pausedRemMs  = null;
+    savePomoState();
+    render();
+};
+
+const pomoSkip = () => {
+    if (pomoState.running) pomoPause();
+    pomoPhaseComplete(false);
+};
+
+const pomoReset = () => {
+    if (!confirm('Reset Pomodoro? This clears the current phase and cycle count.')) return;
+    if (pomoState.running) pomoPause();
+    pomoState.phase            = 'work';
+    pomoState.completedInRound = 0;
+    pomoState.running          = false;
+    pomoState.phaseStartMs     = null;
+    pomoState.pausedRemMs      = null;
+    savePomoState();
+    render();
+};
+
 // ── Streaks ────────────────────────────────────────────────
 const currentStreak = () => {
     let count = 0;
@@ -1505,6 +1719,7 @@ const recomputeBestStreak = () => {
 
 // ── Finish Day ─────────────────────────────────────────────
 const finishDay = async () => {
+    if ((settings.timerMode || 'regular') === 'pomodoro' && pomoState.running) pomoPause();
     if (ticking) pauseTimer();
     const date = todayKey();
     const mins = Math.round(calcElapsedSecs() / 60);
@@ -1557,32 +1772,71 @@ const finishDay = async () => {
 
 // ── Render ─────────────────────────────────────────────────
 const render = () => {
+    const mode = settings.timerMode || 'regular';
+
+    // Pomodoro phase auto-complete check
+    if (mode === 'pomodoro' && pomoState.running && pomoRemainingMs() <= 0) {
+        pomoPhaseComplete(true);
+        return;
+    }
+
     const goalSecs  = Math.max(60, Math.floor(state.goalMins) * 60);
     const elapsed   = calcElapsedSecs();
     const remaining = Math.max(0, goalSecs - elapsed);
     const overtime  = Math.max(0, elapsed - goalSecs);
 
-    document.getElementById('elapsedDisplay').textContent   = fmt(elapsed);
-    document.getElementById('remainingDisplay').textContent = fmt(remaining);
-    document.getElementById('overtimeDisplay').textContent  = fmt(overtime);
+    if (mode === 'regular') {
+        document.getElementById('elapsedDisplay').textContent   = fmt(elapsed);
+        document.getElementById('remainingDisplay').textContent = fmt(remaining);
+        document.getElementById('overtimeDisplay').textContent  = fmt(overtime);
 
+        const label = document.getElementById('startPauseLabel');
+        const icon  = document.getElementById('startPauseIcon');
+        if (ticking) {
+            label.textContent = 'Pause';
+            icon.innerHTML = '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
+        } else {
+            label.textContent = state.sessions.length > 0 ? 'Continue' : 'Start';
+            icon.innerHTML = '<polygon points="5 3 19 12 5 21 5 3"/>';
+        }
+    } else {
+        const remMs    = pomoRemainingMs();
+        const longAfter = settings.pomodoroLongAfter || 4;
+        const isWork   = pomoState.phase === 'work';
+
+        const cdEl = document.getElementById('pomoCountdown');
+        cdEl.textContent = fmtPomo(remMs);
+        cdEl.className   = 'pomo-countdown' + (isWork ? '' : ' break-phase');
+
+        const phEl = document.getElementById('pomoPhaseLabel');
+        phEl.textContent = pomoState.phase === 'work' ? 'Work'
+                         : pomoState.phase === 'short' ? 'Short Break' : 'Long Break';
+        phEl.className = 'pomo-phase-badge ' + (isWork ? 'work-phase' : 'break-phase');
+
+        document.getElementById('pomoCycleInfo').textContent = isWork
+            ? `Session ${pomoState.completedInRound + 1} of ${longAfter}`
+            : `${pomoState.completedInRound} of ${longAfter} done`;
+
+        document.getElementById('pomoFocusSub').textContent = `Focus today: ${fmt(elapsed)}`;
+
+        const pLabel = document.getElementById('pomoStartPauseLabel');
+        const pIcon  = document.getElementById('pomoStartPauseIcon');
+        if (pomoState.running) {
+            pLabel.textContent = 'Pause';
+            pIcon.innerHTML = '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
+        } else {
+            pLabel.textContent = (pomoState.phaseStartMs !== null || pomoState.pausedRemMs !== null) ? 'Continue' : 'Start';
+            pIcon.innerHTML = '<polygon points="5 3 19 12 5 21 5 3"/>';
+        }
+    }
+
+    // Progress bar
     const progressFill = document.getElementById('goalProgressFill');
     const pct = goalSecs > 0 ? Math.min(100, (elapsed / goalSecs) * 100) : 0;
     progressFill.style.width = pct + '%';
     progressFill.classList.toggle('met', elapsed >= goalSecs);
 
-    // Start button label + icon
-    const label = document.getElementById('startPauseLabel');
-    const icon  = document.getElementById('startPauseIcon');
-    if (ticking) {
-        label.textContent = 'Pause';
-        icon.innerHTML = '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
-    } else {
-        label.textContent = state.sessions.length > 0 ? 'Continue' : 'Start';
-        icon.innerHTML = '<polygon points="5 3 19 12 5 21 5 3"/>';
-    }
-
-    // Sessions
+    // Sessions pill
     const count = state.sessions.length;
     document.getElementById('sessionsLabel').textContent = count + ' session' + (count !== 1 ? 's' : '') + ' today';
 
@@ -1600,7 +1854,7 @@ const render = () => {
         pill.className += ' status-working';
     }
 
-    // Sync label , shows the active persistence mode
+    // Sync label
     document.getElementById('syncLabel').textContent =
         notionStatus === 'connected' && notionSelectedDb ? `Notion: ${notionSelectedDb.name}` :
         notionStatus === 'connected'                     ? 'Notion connected' :
@@ -1608,10 +1862,8 @@ const render = () => {
         appUser                                          ? `Saved (${appUser.email})` :
         'Saved (guest)';
 
-    // Goal input
     document.getElementById('goalInput').value = state.goalMins;
 
-    // Streaks
     document.getElementById('currentStreak').textContent = currentStreak() + ' days';
     document.getElementById('bestStreak').textContent    = (state.bestStreak || 0) + ' days';
 
@@ -1646,6 +1898,28 @@ function setupCollapsible(triggerId, bodyId, chevronId) {
 setupCollapsible('dataToggle',     'dataBody',     'dataChevron');
 setupCollapsible('settingsToggle', 'settingsBody', 'settingsChevron');
 setupCollapsible('notionToggle',   'notionBody',   'notionChevron');
+
+// ── Timer mode toggle ──────────────────────────────────────
+const switchTimerMode = mode => {
+    if ((settings.timerMode || 'regular') === mode) return;
+    if (settings.timerMode === 'regular' && ticking) pauseTimer();
+    if (settings.timerMode === 'pomodoro' && pomoState.running) pomoPause();
+    settings.timerMode = mode;
+    saveSettings(settings);
+    document.getElementById('regularView').style.display   = mode === 'regular'  ? '' : 'none';
+    document.getElementById('pomodoroView').style.display  = mode === 'pomodoro' ? '' : 'none';
+    document.getElementById('modeRegularBtn').classList.toggle('active',  mode === 'regular');
+    document.getElementById('modePomodoroBtn').classList.toggle('active', mode === 'pomodoro');
+    render();
+};
+document.getElementById('modeRegularBtn').addEventListener('click',  () => switchTimerMode('regular'));
+document.getElementById('modePomodoroBtn').addEventListener('click', () => switchTimerMode('pomodoro'));
+
+// ── Pomodoro controls ──────────────────────────────────────
+document.getElementById('pomoStartPauseBtn').addEventListener('click', () => { pomoState.running ? pomoPause() : pomoStart(); });
+document.getElementById('pomoSkipBtn').addEventListener('click', pomoSkip);
+document.getElementById('pomoResetBtn').addEventListener('click', pomoReset);
+document.getElementById('pomoFinishDayBtn').addEventListener('click', finishDay);
 
 // ── Event wiring ───────────────────────────────────────────
 document.getElementById('startPauseBtn').addEventListener('click', () => { ticking ? pauseTimer() : startTimer(); });
@@ -1688,6 +1962,22 @@ document.getElementById('importBtn').addEventListener('click', () => {
 });
 
 
+// ── Pomodoro duration settings ─────────────────────────────
+[
+    ['pomoDurWork',      v => { settings.pomodoroWork       = v; }],
+    ['pomoDurShort',     v => { settings.pomodoroShortBreak = v; }],
+    ['pomoDurLong',      v => { settings.pomodoroLongBreak  = v; }],
+    ['pomoDurLongAfter', v => { settings.pomodoroLongAfter  = v; }],
+].forEach(([id, setter]) => {
+    document.getElementById(id).addEventListener('change', e => {
+        const v = Math.max(1, parseInt(e.target.value) || 1);
+        e.target.value = v;
+        setter(v);
+        saveSettings(settings);
+        render();
+    });
+});
+
 // ── Init ───────────────────────────────────────────────────
 applyTheme();
 buildPaletteGrid();
@@ -1699,6 +1989,21 @@ if ((settings.themeMode || 'light') === 'dark') {
 
 recomputeBestStreak();
 render();
+
+// Apply saved timer mode on load
+(function () {
+    const m = settings.timerMode || 'regular';
+    if (m === 'pomodoro') {
+        document.getElementById('regularView').style.display  = 'none';
+        document.getElementById('pomodoroView').style.display = '';
+        document.getElementById('modeRegularBtn').classList.remove('active');
+        document.getElementById('modePomodoroBtn').classList.add('active');
+    }
+    document.getElementById('pomoDurWork').value      = settings.pomodoroWork       || 25;
+    document.getElementById('pomoDurShort').value     = settings.pomodoroShortBreak || 5;
+    document.getElementById('pomoDurLong').value      = settings.pomodoroLongBreak  || 15;
+    document.getElementById('pomoDurLongAfter').value = settings.pomodoroLongAfter  || 4;
+})();
 
 // ── Handle URL params on return ────────────────────────────
 let _pendingResetToken = null;
