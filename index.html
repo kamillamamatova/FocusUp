@@ -627,6 +627,16 @@ function renderDbPickerHTML() {
 
     // Already have a selected DB
     if (notionSelectedDb) {
+        const historyCount = Object.keys(state.history || {}).length;
+        const backfillNote = historyCount > 0
+            ? `<p class="notion-desc" style="margin-top:12px;margin-bottom:6px;">
+                You have <strong>${historyCount}</strong> day${historyCount === 1 ? '' : 's'} logged locally.
+                New days sync automatically when you click <strong>Finish Day</strong>.
+                To push your existing history into this database now, click below.
+               </p>
+               <button type="button" class="btn btn-secondary" id="backfillBtn" style="padding:7px 16px;font-size:13px;">Sync history to Notion</button>
+               <span id="backfillStatus" style="display:none;margin-left:10px;font-size:13px;"></span>`
+            : '';
         return `<div class="db-picker-section">
             <div class="db-picker-title">Saving logs to</div>
             <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px;">
@@ -636,6 +646,7 @@ function renderDbPickerHTML() {
               </span>
               <button type="button" class="btn btn-secondary" id="changeDbBtn" style="padding:6px 14px;font-size:12px;">Change</button>
             </div>
+            ${backfillNote}
             ${schemaNote}
         </div>`;
     }
@@ -723,9 +734,55 @@ function wireDbPickerEvents() {
         renderNotionSync();
     });
     document.getElementById('reconnectBtn')?.addEventListener('click', connectNotion);
+    document.getElementById('backfillBtn')?.addEventListener('click', backfillHistory);
     document.querySelectorAll('.db-item').forEach(btn => {
         btn.addEventListener('click', () => selectDatabase(btn.dataset.dbId, btn.dataset.dbName));
     });
+}
+
+async function backfillHistory() {
+    const btn = document.getElementById('backfillBtn');
+    const statusEl = document.getElementById('backfillStatus');
+    if (!btn || !statusEl) return;
+
+    const entries = Object.entries(state.history || {});
+    if (entries.length === 0) return;
+
+    btn.disabled = true;
+    statusEl.style.display = '';
+    statusEl.style.color = '';
+    statusEl.textContent = `Syncing 0 / ${entries.length}\u2026`;
+
+    let ok = 0, failed = 0;
+    for (const [date, rec] of entries) {
+        try {
+            const res = await fetch(`${BACKEND_URL}/api/sync`, {
+                method:      'POST',
+                credentials: 'include',
+                headers:     { 'Content-Type': 'application/json', ...authHeaders() },
+                body:        JSON.stringify({
+                    date,
+                    minutes: rec.minutes  ?? 0,
+                    goal:    Math.max(1, rec.goalMins ?? state.goalMins ?? 120),
+                    met:     rec.met      ?? false,
+                }),
+            });
+            res.ok ? ok++ : failed++;
+        } catch {
+            failed++;
+        }
+        statusEl.textContent = `Syncing ${ok + failed} / ${entries.length}\u2026`;
+    }
+
+    btn.disabled = false;
+    if (failed === 0) {
+        statusEl.style.color = 'var(--success, green)';
+        statusEl.textContent = `Done — ${ok} day${ok === 1 ? '' : 's'} synced.`;
+        btn.style.display = 'none';
+    } else {
+        statusEl.style.color = 'var(--danger, red)';
+        statusEl.textContent = `${ok} synced, ${failed} failed. Try again.`;
+    }
 }
 
 async function loadDatabases() {
