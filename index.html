@@ -1769,7 +1769,14 @@ const recomputeBestStreak = () => {
 };
 
 // ── Finish Day ─────────────────────────────────────────────
-const finishDay = async () => {
+const finishDay = () => {
+    const previewMins = Math.round(calcElapsedSecs() / 60);
+    const previewGoal = Math.max(1, Math.floor(state.goalMins));
+    const previewMet  = previewMins >= previewGoal;
+    showConfirm(
+        'Finish today?',
+        `Log ${previewMins} min toward your ${previewGoal} min goal${previewMet ? ', goal met!' : '.'}`,
+        async () => {
     if ((settings.timerMode || 'regular') === 'pomodoro' && pomoState.running) pomoPause();
     if (ticking) pauseTimer();
     const date = todayKey();
@@ -1782,7 +1789,6 @@ const finishDay = async () => {
     state.sessions = [];
     saveState();
     recomputeBestStreak();
-    alert(`Logged ${mins} min for ${date}${met ? ', goal met!' : ''}.`);
     render();
 
     // Push durable state to server so other devices see the new history entry.
@@ -1819,6 +1825,8 @@ const finishDay = async () => {
         syncEl.textContent = 'Could not reach Notion sync';
         syncEl.className   = 'pill sync-fail';
     }
+        } // end confirm callback
+    ); // end showConfirm
 };
 
 // ── Render ─────────────────────────────────────────────────
