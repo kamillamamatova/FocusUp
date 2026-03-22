@@ -641,6 +641,7 @@ function renderAuthModal() {
             appUser = null;
             closeAuthModal();
             renderAccountBtn();
+            render();
         });
         return;
     }
@@ -655,7 +656,7 @@ function renderAuthModal() {
         <input type="email" class="auth-input" id="authEmail" placeholder="you@example.com" autocomplete="email">
         <label class="auth-label" for="authPassword">Password</label>
         <input type="password" class="auth-input" id="authPassword" placeholder="••••••••" autocomplete="${authMode === 'signup' ? 'new-password' : 'current-password'}">
-        ${authMode === 'signup' ? '<p class="auth-hint">At least 8 characters. That\'s it.</p>' : ''}
+        ${authMode === 'signup' ? '<p class="auth-hint">At least 8 characters' : ''}
         <p class="auth-error" id="authError"></p>
         <button type="button" class="btn btn-primary auth-submit" id="authSubmitBtn">
           ${authMode === 'signup' ? 'Sign up' : 'Log in'}
@@ -706,6 +707,7 @@ async function submitAuth() {
             appUser = data.user;
             closeAuthModal();
             renderAccountBtn();
+            render();
             pullAndMergeState();
         }
     } catch {
@@ -1319,6 +1321,7 @@ const render = () => {
         notionStatus === 'connected' && notionSelectedDb ? `Notion: ${notionSelectedDb.name}` :
         notionStatus === 'connected'                     ? 'Notion connected' :
         notionStatus === 'checking'                      ? 'Checking\u2026' :
+        appUser                                          ? `Saved (${appUser.email})` :
         'Saved (guest)';
 
     // Goal input
