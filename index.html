@@ -60,6 +60,7 @@
     .auth-label { display: block; font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 6px; }
     .auth-input { width: 100%; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text); font-family: inherit; font-size: 14px; outline: none; transition: box-shadow 0.2s; margin-bottom: 14px; }
     .auth-input:focus { box-shadow: 0 0 0 2px var(--primary); }
+    .auth-hint { font-size: 12px; color: var(--text-muted); margin-top: -8px; margin-bottom: 12px; }
     .auth-error { font-size: 13px; color: #dc2626; margin-bottom: 12px; line-height: 1.4; display: none; }
     .auth-submit { width: 100%; justify-content: center; margin-top: 2px; }
     .auth-hr { border: none; border-top: 1px solid var(--border); margin: 20px 0 16px; }
@@ -654,6 +655,7 @@ function renderAuthModal() {
         <input type="email" class="auth-input" id="authEmail" placeholder="you@example.com" autocomplete="email">
         <label class="auth-label" for="authPassword">Password</label>
         <input type="password" class="auth-input" id="authPassword" placeholder="••••••••" autocomplete="${authMode === 'signup' ? 'new-password' : 'current-password'}">
+        ${authMode === 'signup' ? '<p class="auth-hint">At least 8 characters. That\'s it.</p>' : ''}
         <p class="auth-error" id="authError"></p>
         <button type="button" class="btn btn-primary auth-submit" id="authSubmitBtn">
           ${authMode === 'signup' ? 'Sign up' : 'Log in'}
