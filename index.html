@@ -28,11 +28,29 @@
 
     /* Header */
     .header { text-align: center; margin-bottom: 24px; }
-    .header-row { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 6px; }
+    .header-row { position: relative; display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 6px; }
     h1 { font-size: 28px; font-weight: 600; color: var(--text); letter-spacing: -0.5px; }
     .subtitle { font-size: 14px; color: var(--text-muted); }
+    .header-btns { position: absolute; right: 0; top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 2px; }
     .palette-btn { background: none; border: none; cursor: pointer; color: var(--text-muted); padding: 6px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
     .palette-btn:hover { background: rgba(255,255,255,0.4); }
+
+    /* Account button + popover */
+    .account-wrap { position: relative; }
+    .account-btn { background: none; border: none; cursor: pointer; color: var(--text-muted); padding: 6px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: background 0.2s; position: relative; }
+    .account-btn:hover { background: rgba(255,255,255,0.4); }
+    .account-btn.connected { color: var(--success); }
+    .account-dot { position: absolute; bottom: 4px; right: 4px; width: 7px; height: 7px; border-radius: 50%; background: var(--success); border: 1.5px solid var(--bg); display: none; }
+    .account-btn.connected .account-dot { display: block; }
+    .account-popover { position: absolute; top: calc(100% + 8px); right: 0; width: 230px; background: var(--card); border: 1px solid var(--border); border-radius: 18px; box-shadow: 0 8px 32px rgba(0,0,0,0.12); backdrop-filter: blur(12px); padding: 16px; z-index: 200; display: none; text-align: left; }
+    .account-popover.open { display: block; }
+    .ap-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted); margin-bottom: 8px; }
+    .ap-workspace { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 12px; }
+    .ap-workspace svg { color: var(--success); flex-shrink: 0; }
+    .ap-guest { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+    .ap-hint { font-size: 12px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.5; }
+    .ap-btn { width: 100%; justify-content: center; padding: 9px 16px; font-size: 13px; }
+    .ap-divider { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
 
     /* Card */
     .card { background: var(--card); border: 1px solid var(--border); border-radius: 24px; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.06); backdrop-filter: blur(8px); margin-bottom: 12px; }
@@ -167,9 +185,18 @@
   <div class="header">
     <div class="header-row">
       <h1>Focus Timer</h1>
-      <button type="button" class="palette-btn" id="toggleThemePicker" title="Change theme">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
-      </button>
+      <div class="header-btns">
+        <button type="button" class="palette-btn" id="toggleThemePicker" title="Change theme">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
+        </button>
+        <div class="account-wrap" id="accountWrap">
+          <button type="button" class="account-btn" id="accountBtn" title="Account">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+            <div class="account-dot"></div>
+          </button>
+          <div class="account-popover" id="accountPopover"></div>
+        </div>
+      </div>
     </div>
     <p class="subtitle">Count up toward your daily goal, log your day, and keep your streak alive</p>
   </div>
@@ -523,8 +550,67 @@ async function checkNotionStatus() {
         }
     }
     renderNotionSync();
+    renderAccountBtn();
     render(); // refresh syncLabel pill
 }
+
+// ── Account popover ────────────────────────────────────────
+function renderAccountBtn() {
+    const btn = document.getElementById('accountBtn');
+    if (!btn) return;
+    btn.className = notionStatus === 'connected' ? 'account-btn connected' : 'account-btn';
+}
+
+function renderAccountPopover() {
+    const pop = document.getElementById('accountPopover');
+    if (!pop) return;
+
+    if (notionStatus === 'connected') {
+        const ws = notionWorkspace ? escapeHtml(notionWorkspace) : 'Notion';
+        pop.innerHTML = `
+            <p class="ap-label">Account</p>
+            <div class="ap-workspace">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+              ${ws}
+            </div>
+            <hr class="ap-divider">
+            <button type="button" class="btn btn-secondary ap-btn" id="apDisconnectBtn">Disconnect</button>`;
+        document.getElementById('apDisconnectBtn').addEventListener('click', () => {
+            closeAccountPopover();
+            disconnectNotion();
+        });
+    } else if (notionStatus === 'checking' || notionStatus === 'verifying') {
+        pop.innerHTML = `<p class="ap-hint" style="margin-bottom:0;">Checking connection&hellip;</p>`;
+    } else {
+        pop.innerHTML = `
+            <p class="ap-guest">Signed in as Guest</p>
+            <p class="ap-hint">Connect Notion to save your history across devices and browsers.</p>
+            <button type="button" class="btn btn-primary ap-btn" id="apConnectBtn">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              Connect Notion
+            </button>`;
+        document.getElementById('apConnectBtn').addEventListener('click', () => {
+            closeAccountPopover();
+            connectNotion();
+        });
+    }
+}
+
+function openAccountPopover() {
+    renderAccountPopover();
+    document.getElementById('accountPopover').classList.add('open');
+}
+function closeAccountPopover() {
+    document.getElementById('accountPopover')?.classList.remove('open');
+}
+
+document.getElementById('accountBtn').addEventListener('click', e => {
+    e.stopPropagation();
+    const pop = document.getElementById('accountPopover');
+    pop.classList.contains('open') ? closeAccountPopover() : openAccountPopover();
+});
+document.getElementById('accountPopover').addEventListener('click', e => e.stopPropagation());
+document.addEventListener('click', closeAccountPopover);
 
 function renderNotionSync() {
     const panel = document.getElementById('notionSyncPanel');
@@ -1233,6 +1319,7 @@ if (_oauthParams.has('notion_error')) {
 
 // Render the panel immediately so it's never blank while the async fetch runs.
 renderNotionSync();
+renderAccountBtn();
 
 // Pull canonical state from the backend immediately on load.
 // Works for guests (X-Guest-ID) and Notion users (Bearer).
