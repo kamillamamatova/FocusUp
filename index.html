@@ -102,6 +102,10 @@
     .timer-digits.remaining { color: var(--primary); }
     .timer-digits.overtime { color: var(--success); }
     .controls { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; }
+    .goal-progress-wrap { margin: 20px -32px -28px; }
+    .goal-progress-bar { height: 3px; background: var(--border); }
+    .goal-progress-fill { height: 100%; width: 0%; max-width: 100%; background: var(--primary); transition: width 0.4s ease, background 0.4s ease; }
+    .goal-progress-fill.met { background: var(--success); }
 
     /* Buttons */
     .btn { display: inline-flex; align-items: center; gap: 8px; padding: 11px 22px; border-radius: 50px; border: none; font-family: inherit; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.15s; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
@@ -218,6 +222,7 @@
     @media (max-width: 600px) {
       body { padding: 16px 12px 32px; }
       .timer-section { padding: 24px 16px 20px; }
+      .goal-progress-wrap { margin: 16px -16px -20px; }
       .timer-digits { font-size: 24px; }
       .goal-row, .section { padding: 16px; }
       .collapsible-trigger { padding: 14px 16px; }
@@ -299,6 +304,11 @@
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
           Finish Day
         </button>
+      </div>
+      <div class="goal-progress-wrap">
+        <div class="goal-progress-bar">
+          <div class="goal-progress-fill" id="goalProgressFill"></div>
+        </div>
       </div>
     </div>
 
@@ -1555,6 +1565,11 @@ const render = () => {
     document.getElementById('elapsedDisplay').textContent   = fmt(elapsed);
     document.getElementById('remainingDisplay').textContent = fmt(remaining);
     document.getElementById('overtimeDisplay').textContent  = fmt(overtime);
+
+    const progressFill = document.getElementById('goalProgressFill');
+    const pct = goalSecs > 0 ? Math.min(100, (elapsed / goalSecs) * 100) : 0;
+    progressFill.style.width = pct + '%';
+    progressFill.classList.toggle('met', elapsed >= goalSecs);
 
     // Start button label + icon
     const label = document.getElementById('startPauseLabel');
