@@ -110,9 +110,9 @@
     .timer-digits.remaining { color: var(--primary); }
     .timer-digits.overtime { color: var(--success); }
     .controls { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; }
-    .goal-progress-wrap { margin: 20px -32px -28px; }
-    .goal-progress-bar { height: 3px; background: var(--border); }
-    .goal-progress-fill { height: 100%; width: 0%; max-width: 100%; background: var(--primary); transition: width 0.4s ease, background 0.4s ease; }
+    .goal-progress-wrap { margin-top: 20px; }
+    .goal-progress-bar { height: 6px; background: var(--border); border-radius: 99px; overflow: hidden; }
+    .goal-progress-fill { height: 100%; width: 0%; max-width: 100%; background: var(--primary); border-radius: 99px; transition: width 0.4s ease, background 0.4s ease; }
     .goal-progress-fill.met { background: var(--success); }
 
     /* Timer mode toggle */
@@ -252,7 +252,7 @@
     @media (max-width: 600px) {
       body { padding: 16px 12px 32px; }
       .timer-section { padding: 24px 16px 20px; }
-      .goal-progress-wrap { margin: 16px -16px -20px; }
+
       .timer-digits { font-size: 24px; }
       .goal-row, .section { padding: 16px; }
       .collapsible-trigger { padding: 14px 16px; }
