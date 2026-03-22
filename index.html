@@ -424,7 +424,7 @@
         <div class="hints-grid">
           <div class="hint-item">
             <span class="hint-badge">Start</span>
-            <span class="hint-text">Begins counting up. Your time is saved automatically — closing the tab won't lose it.</span>
+            <span class="hint-text">Begins counting up. Your time is saved automatically, closing the tab won't lose it.</span>
           </div>
           <div class="hint-item">
             <span class="hint-badge">Pause</span>
@@ -472,7 +472,7 @@
           </div>
           <div class="hint-item">
             <span class="hint-badge">Notion Sync</span>
-            <span class="hint-text">Connects FocusUp to a Notion database. Every Finish Day adds a row with your date, minutes, goal, and whether you hit it — so your focus log lives inside Notion as a real table you can filter and annotate.</span>
+            <span class="hint-text">Connects FocusUp to a Notion database. Every Finish Day adds a row with your date, minutes, goal, and whether you hit it, so your focus log lives inside Notion as a real table you can filter and annotate.</span>
           </div>
         </div>
 
@@ -524,10 +524,10 @@ const BACKEND_URL = (window.location.hostname === 'localhost' || window.location
 
 // ── Identity ───────────────────────────────────────────────
 // Two identity layers:
-//   1. clientToken (Notion OAuth) — Bearer header, stored in localStorage after OAuth.
+//   1. clientToken (Notion OAuth) , Bearer header, stored in localStorage after OAuth.
 //      Used for Notion-specific routes (sync, databases) AND as the preferred
 //      identity for state routes when Notion is connected.
-//   2. guestId (anonymous UUID) — X-Guest-ID header, generated on first visit,
+//   2. guestId (anonymous UUID) , X-Guest-ID header, generated on first visit,
 //      stored in localStorage.  Used for state routes when not Notion-connected.
 //      The backend persists guest state server-side so data survives browser
 //      cache clears (as long as localStorage isn't wiped).
@@ -549,13 +549,13 @@ const getGuestId = () => {
     return id;
 };
 
-// authHeaders — for Notion-specific routes that require OAuth (sync, databases, status).
+// authHeaders , for Notion-specific routes that require OAuth (sync, databases, status).
 const authHeaders = () => {
     const t = getClientToken();
     return t ? { 'Authorization': `Bearer ${t}` } : {};
 };
 
-// identityHeaders — for /api/state: Notion Bearer if available, else X-Guest-ID.
+// identityHeaders , for /api/state: Notion Bearer if available, else X-Guest-ID.
 // This means state routes work for ALL users, authenticated or not.
 const identityHeaders = () => {
     const t = getClientToken();
@@ -569,12 +569,12 @@ let notionStatus    = 'checking';
 let notionWorkspace = null;
 let notionErrorMsg  = null;
 // Database picker state
-let notionSelectedDb  = null; // { id, name } | null  — from /api/auth/status
+let notionSelectedDb  = null; // { id, name } | null  , from /api/auth/status
 let notionDbList      = null; // null=not loaded | []  | Array<{id,name,icon}>
 let notionDbLoading   = false;
 let notionDbError     = null;
 
-// ── Settings (theme — stored separately from app state) ────
+// ── Settings (theme , stored separately from app state) ────
 const SETTINGS_KEY = 'focusTimerSettings.v1';
 function loadSettings() { try { return JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'); } catch { return {}; } }
 function saveSettings(s) { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); }
@@ -655,7 +655,7 @@ document.getElementById('darkModeBtn').addEventListener('click', () => {
 const NOTION_ERROR_LABELS = {
     access_denied:         "You didn't approve the connection. You can try again whenever you're ready.",
     missing_code:          'Something went wrong during sign-in. Please try again.',
-    state_mismatch:        'The sign-in attempt could not be completed — it may have timed out. Please try again.',
+    state_mismatch:        'The sign-in attempt could not be completed, it may have timed out. Please try again.',
     token_exchange_failed: 'Notion could not complete the sign-in. Please try again.',
     network_error:         'Could not reach Notion. Check your internet connection and try again.',
     storage_error:         'Sign-in succeeded, but something went wrong saving it. Please try again.',
@@ -709,7 +709,7 @@ async function checkAppAuth() {
             const data = await res.json();
             appUser = data.user || null;
         }
-    } catch { /* server unavailable — stay as guest */ }
+    } catch { /* server unavailable , stay as guest */ }
     renderAccountBtn();
 }
 
@@ -854,7 +854,7 @@ async function submitAuth() {
         const data = await res.json();
         if (!res.ok) {
             if (res.status === 409 && authMode === 'signup') {
-                // Email already registered — switch to login with email pre-filled
+                // Email already registered , switch to login with email pre-filled
                 authMode = 'login';
                 renderAuthModal();
                 const emailInput = document.getElementById('authEmail');
@@ -1135,7 +1135,7 @@ function renderDbPickerHTML() {
         </div>`;
     }
 
-    // Databases loaded — show list
+    // Databases loaded , show list
     if (notionDbList !== null) {
         if (notionDbList.length === 0) {
             return `<div class="db-picker-section">
@@ -1181,7 +1181,7 @@ function renderDbPickerHTML() {
         </div>`;
     }
 
-    // Not yet loaded — show optional prompt
+    // Not yet loaded , show optional prompt
     return `<div class="db-picker-section">
         <div class="db-picker-title">Save logs to Notion automatically <span style="font-weight:400;opacity:0.7;">(optional)</span></div>
         <p class="notion-desc" style="margin-top:8px;">Every time you click <strong>Finish Day</strong>, FocusUp adds a row to a Notion database with your date, minutes focused, goal, and whether you hit it. Pick a database below to enable this.</p>
@@ -1314,7 +1314,7 @@ async function disconnectNotion() {
     localStorage.removeItem(NOTION_TOKEN_KEY);
     try {
         await fetch(`${BACKEND_URL}/api/auth/logout`, { method: 'POST', credentials: 'include', headers: authHeaders() });
-    } catch { /* network failure — still update local state */ }
+    } catch { /* network failure , still update local state */ }
     notionStatus    = 'disconnected';
     notionWorkspace = null;
     renderNotionSync();
@@ -1329,7 +1329,7 @@ async function disconnectNotion() {
 let _pushPending = false;
 
 async function pushStateToServer() {
-    // No gate on notionStatus — guests push too.
+    // No gate on notionStatus , guests push too.
     if (_pushPending) return;
     _pushPending = true;
     try {
@@ -1343,7 +1343,7 @@ async function pushStateToServer() {
                 bestStreak: state.bestStreak,
             }}),
         });
-    } catch { /* non-fatal — localStorage cache remains usable */ }
+    } catch { /* non-fatal , localStorage cache remains usable */ }
     _pushPending = false;
 }
 
@@ -1364,17 +1364,17 @@ async function pullAndMergeState() {
             // This is the migration path for existing localStorage-only users.
             pushStateToServer();
         } else {
-            // Server has no record yet — seed it from local state.
+            // Server has no record yet , seed it from local state.
             pushStateToServer();
         }
-    } catch { /* backend unavailable — localStorage cache is fine */ }
+    } catch { /* backend unavailable , localStorage cache is fine */ }
 }
 
 function _mergeServerState(serverState) {
     let changed = false;
 
     // History merge: server fills in entries the local cache is missing.
-    // Local wins on conflict — the device that just logged a day has the freshest copy.
+    // Local wins on conflict , the device that just logged a day has the freshest copy.
     if (serverState.history && typeof serverState.history === 'object' && !Array.isArray(serverState.history)) {
         for (const [date, rec] of Object.entries(serverState.history)) {
             if (!state.history[date]) {
@@ -1501,7 +1501,7 @@ const finishDay = async () => {
     const goal = Math.max(1, Math.floor(state.goalMins));
     const met  = mins >= goal;
 
-    // ── Local save — always first, unconditionally ──────────
+    // ── Local save , always first, unconditionally ──────────
     state.history[date] = { minutes: mins, goalMins: goal, met };
     state.sessions = [];
     saveState();
@@ -1512,7 +1512,7 @@ const finishDay = async () => {
     // Push durable state to server so other devices see the new history entry.
     pushStateToServer();
 
-    // ── Notion sync — fire only when fully configured ───────
+    // ── Notion sync , fire only when fully configured ───────
     const syncEl = document.getElementById('syncStatus');
     if (notionStatus !== 'connected' || !notionSelectedDb) {
         syncEl.style.display = 'none';
@@ -1585,7 +1585,7 @@ const render = () => {
         pill.className += ' status-working';
     }
 
-    // Sync label — shows the active persistence mode
+    // Sync label , shows the active persistence mode
     document.getElementById('syncLabel').textContent =
         notionStatus === 'connected' && notionSelectedDb ? `Notion: ${notionSelectedDb.name}` :
         notionStatus === 'connected'                     ? 'Notion connected' :
@@ -1613,7 +1613,7 @@ function renderHistory() {
     const rows = entries.map(([date, rec]) => `
         <tr>
           <td>${date}</td>
-          <td>${rec.minutes} / ${rec.goalMins || rec.goal || '—'}</td>
+          <td>${rec.minutes} / ${rec.goalMins || rec.goal || ','}</td>
           <td><span class="status-badge ${rec.met ? 'met' : 'incomplete'}">${rec.met ? '✓ Met' : 'Incomplete'}</span></td>
         </tr>`).join('');
     container.innerHTML = `<div class="history-table-wrap"><table><thead><tr><th>Date</th><th>Minutes / Goal</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div>`;
@@ -1716,7 +1716,7 @@ checkAppAuth();
 
 // Pull canonical state from the backend immediately on load.
 // Works for guests (X-Guest-ID) and Notion users (Bearer).
-// localStorage is only a fast-init cache — backend is the source of truth.
+// localStorage is only a fast-init cache , backend is the source of truth.
 pullAndMergeState();
 
 // Separately check Notion auth status (governs the Notion Sync panel UI).
