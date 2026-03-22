@@ -85,6 +85,16 @@ db.exec(`
     )
 `);
 
+// Email/password accounts (owner_type = 'app' in user_state).
+db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+        id            TEXT PRIMARY KEY,
+        email         TEXT UNIQUE NOT NULL COLLATE NOCASE,
+        password_hash TEXT NOT NULL,
+        created_at    INTEGER NOT NULL
+    )
+`);
+
 // One-time migration: promote rows from the old app_state table (keyed by workspace_id)
 // into user_state so no data is lost after the schema upgrade.
 try {
@@ -250,6 +260,53 @@ function getWorkspaceForGuest(guestId) {
     return row ? row.workspace_id : null;
 }
 
+// ── App user accounts ──────────────────────────────────────
+
+function createUser(id, email, passwordHash) {
+    db.prepare(`
+        INSERT INTO users (id, email, password_hash, created_at) VALUES (?, ?, ?, ?)
+    `).run(id, email, passwordHash, Date.now());
+    return getUserById(id);
+}
+
+function getUserByEmail(email) {
+    return db.prepare('SELECT * FROM users WHERE email = ?').get(email) || null;
+}
+
+function getUserById(id) {
+    return db.prepare('SELECT * FROM users WHERE id = ?').get(id) || null;
+}
+
+/**
+ * Merge a guest's history into an app-user account when they sign up or log in.
+ * App-user state wins on date conflicts; guest fills in missing dates.
+ */
+function migrateGuestToApp(guestId, userId) {
+    if (!guestId || !userId) return;
+
+    const guestRow = getUserState(guestId);
+    if (!guestRow) return;
+
+    let guestState;
+    try { guestState = JSON.parse(guestRow.state_json); } catch { return; }
+
+    const appRow = getUserState(userId);
+    let appState = { goalMins: 120, history: {}, bestStreak: 0 };
+    if (appRow) {
+        try { appState = JSON.parse(appRow.state_json); } catch { /* keep defaults */ }
+    }
+
+    const mergedHistory = { ...guestState.history, ...appState.history };
+    const merged = {
+        goalMins:   appState.goalMins || guestState.goalMins || 120,
+        history:    mergedHistory,
+        bestStreak: Math.max(appState.bestStreak || 0, guestState.bestStreak || 0),
+    };
+
+    saveUserState(userId, 'app', JSON.stringify(merged));
+    console.log(`Migrated guest ${guestId.slice(0, 8)}… → app user ${userId.slice(0, 8)}…`);
+}
+
 /** Graceful shutdown. */
 function close() {
     db.close();
@@ -262,5 +319,6 @@ module.exports = {
     savePendingAuth, consumePendingAuth,
     saveUserState, getUserState,
     migrateGuestToNotion, getWorkspaceForGuest,
+    createUser, getUserByEmail, getUserById, migrateGuestToApp,
     close,
 };

@@ -1,19 +1,131 @@
 'use strict';
 /**
- * Notion OAuth routes
+ * Auth routes
  *
+ *   POST /api/auth/register          — create email/password account
+ *   POST /api/auth/login             — sign in with email/password
+ *   GET  /api/auth/me                — return current app-user session (if any)
+ *   POST /api/auth/app-logout        — sign out of app account only
  *   GET  /api/auth/notion            — redirect user to Notion's consent screen
  *   GET  /api/auth/notion/callback   — exchange code → access token, persist in DB
- *   GET  /api/auth/status            — is this session connected?
- *   POST /api/auth/logout            — disconnect (delete token, destroy session)
+ *   GET  /api/auth/status            — is this session Notion-connected?
+ *   POST /api/auth/logout            — disconnect Notion (delete token, destroy session)
  *
  * References:
  *   https://developers.notion.com/docs/authorization
  */
 
-const { randomBytes } = require('crypto');
-const router = require('express').Router();
-const { saveToken, getToken, deleteToken, saveClientToken, getTokenByClientToken, migrateGuestToNotion } = require('../db');
+const { randomBytes, scrypt, timingSafeEqual } = require('crypto');
+const { promisify }  = require('util');
+const router         = require('express').Router();
+const {
+    saveToken, getToken, deleteToken, saveClientToken, getTokenByClientToken,
+    migrateGuestToNotion, createUser, getUserByEmail, getUserById, migrateGuestToApp,
+} = require('../db');
+
+// ── Password hashing (Node built-in crypto.scrypt, no extra deps) ─────────
+const scryptAsync = promisify(scrypt);
+const SCRYPT_OPTS = { N: 16384, r: 8, p: 1, maxmem: 64 * 1024 * 1024 };
+
+async function hashPassword(password) {
+    const salt = randomBytes(16).toString('hex');
+    const buf  = await scryptAsync(password, salt, 64, SCRYPT_OPTS);
+    return `scrypt:${salt}:${buf.toString('hex')}`;
+}
+
+async function verifyPassword(password, stored) {
+    const [, salt, key] = stored.split(':');
+    const buf = await scryptAsync(password, salt, 64, SCRYPT_OPTS);
+    return timingSafeEqual(Buffer.from(key, 'hex'), buf);
+}
+
+// ── POST /api/auth/register ───────────────────────────────
+router.post('/register', async (req, res) => {
+    const { email, password, guestId } = req.body || {};
+
+    if (typeof email !== 'string' || !email.includes('@') || email.length > 254) {
+        return res.status(400).json({ error: 'A valid email address is required.' });
+    }
+    if (typeof password !== 'string' || password.length < 8) {
+        return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+    }
+
+    if (getUserByEmail(email)) {
+        return res.status(409).json({ error: 'An account with that email already exists.' });
+    }
+
+    try {
+        const hash = await hashPassword(password);
+        const id   = randomBytes(16).toString('hex');
+        const user = createUser(id, email.toLowerCase().trim(), hash);
+
+        // Migrate guest history into the new account.
+        if (typeof guestId === 'string' && guestId) migrateGuestToApp(guestId, id);
+
+        req.session.userId    = user.id;
+        req.session.userEmail = user.email;
+        req.session.save(err => {
+            if (err) console.error('Session save error after register:', err.message);
+        });
+
+        res.json({ ok: true, user: { id: user.id, email: user.email } });
+    } catch (err) {
+        console.error('Register error:', err.message);
+        res.status(500).json({ error: 'Could not create account. Please try again.' });
+    }
+});
+
+// ── POST /api/auth/login ──────────────────────────────────
+router.post('/login', async (req, res) => {
+    const { email, password, guestId } = req.body || {};
+
+    if (typeof email !== 'string' || typeof password !== 'string') {
+        return res.status(400).json({ error: 'Email and password are required.' });
+    }
+
+    const user = getUserByEmail(email.trim());
+    if (!user) {
+        return res.status(401).json({ error: 'No account found with that email.' });
+    }
+
+    try {
+        const ok = await verifyPassword(password, user.password_hash);
+        if (!ok) return res.status(401).json({ error: 'Incorrect password.' });
+
+        // Migrate any guest history accumulated before logging in.
+        if (typeof guestId === 'string' && guestId) migrateGuestToApp(guestId, user.id);
+
+        req.session.userId    = user.id;
+        req.session.userEmail = user.email;
+        req.session.save(err => {
+            if (err) console.error('Session save error after login:', err.message);
+        });
+
+        res.json({ ok: true, user: { id: user.id, email: user.email } });
+    } catch (err) {
+        console.error('Login error:', err.message);
+        res.status(500).json({ error: 'Sign-in failed. Please try again.' });
+    }
+});
+
+// ── GET /api/auth/me ──────────────────────────────────────
+router.get('/me', (req, res) => {
+    if (!req.session?.userId) return res.json({ user: null });
+    const user = getUserById(req.session.userId);
+    if (!user) {
+        delete req.session.userId;
+        return res.json({ user: null });
+    }
+    res.json({ user: { id: user.id, email: user.email } });
+});
+
+// ── POST /api/auth/app-logout ─────────────────────────────
+router.post('/app-logout', (req, res) => {
+    delete req.session.userId;
+    delete req.session.userEmail;
+    req.session.save(() => {});
+    res.json({ ok: true });
+});
 
 const NOTION_OAUTH_BASE = 'https://api.notion.com/v1/oauth/authorize';
 const NOTION_TOKEN_URL  = 'https://api.notion.com/v1/oauth/token';

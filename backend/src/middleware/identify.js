@@ -17,7 +17,7 @@
  * On failure, returns 401.
  */
 
-const { getToken, getTokenByClientToken } = require('../db');
+const { getToken, getTokenByClientToken, getUserById } = require('../db');
 
 // Guest UUIDs are hex strings (with optional hyphens) of 32–64 characters.
 const GUEST_ID_RE = /^[0-9a-f-]{32,64}$/i;
@@ -54,7 +54,18 @@ module.exports = function identifyUser(req, res, next) {
         req.session.connected = false; // stale flag — clear it
     }
 
-    // ── 3. Guest ID header ─────────────────────────────────
+    // ── 3. App-user session ────────────────────────────────
+    if (req.session?.userId) {
+        const user = getUserById(req.session.userId);
+        if (user) {
+            req.ownerId   = user.id;
+            req.ownerType = 'app';
+            return next();
+        }
+        delete req.session.userId; // stale — clear it
+    }
+
+    // ── 4. Guest ID header ─────────────────────────────────
     const guestId = (req.headers['x-guest-id'] || '').trim();
     if (guestId && GUEST_ID_RE.test(guestId)) {
         req.ownerId   = guestId;

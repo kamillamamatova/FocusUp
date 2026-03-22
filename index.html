@@ -35,22 +35,42 @@
     .palette-btn { background: none; border: none; cursor: pointer; color: var(--text-muted); padding: 6px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
     .palette-btn:hover { background: rgba(255,255,255,0.4); }
 
-    /* Account button + popover */
+    /* Account button */
     .account-wrap { position: relative; }
     .account-btn { background: none; border: none; cursor: pointer; color: var(--text-muted); padding: 6px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: background 0.2s; position: relative; }
     .account-btn:hover { background: rgba(255,255,255,0.4); }
-    .account-btn.connected { color: var(--success); }
+    .account-btn.signed-in { color: var(--primary); }
+    .account-btn.notion-connected { color: var(--success); }
     .account-dot { position: absolute; bottom: 4px; right: 4px; width: 7px; height: 7px; border-radius: 50%; background: var(--success); border: 1.5px solid var(--bg); display: none; }
-    .account-btn.connected .account-dot { display: block; }
-    .account-popover { position: absolute; top: calc(100% + 8px); right: 0; width: 230px; background: var(--card); border: 1px solid var(--border); border-radius: 18px; box-shadow: 0 8px 32px rgba(0,0,0,0.12); backdrop-filter: blur(12px); padding: 16px; z-index: 200; display: none; text-align: left; }
-    .account-popover.open { display: block; }
-    .ap-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted); margin-bottom: 8px; }
-    .ap-workspace { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 12px; }
-    .ap-workspace svg { color: var(--success); flex-shrink: 0; }
-    .ap-guest { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
-    .ap-hint { font-size: 12px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.5; }
-    .ap-btn { width: 100%; justify-content: center; padding: 9px 16px; font-size: 13px; }
-    .ap-divider { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
+    .account-btn.notion-connected .account-dot { display: block; }
+    .account-initial { position: absolute; inset: 0; border-radius: 50%; background: var(--primary); color: white; font-size: 11px; font-weight: 700; display: none; align-items: center; justify-content: center; }
+    .account-btn.signed-in .account-initial { display: flex; }
+    .account-btn.signed-in svg { opacity: 0; }
+
+    /* Auth modal overlay */
+    .auth-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 1000; align-items: center; justify-content: center; padding: 16px; backdrop-filter: blur(4px); }
+    .auth-overlay.open { display: flex; }
+    .auth-modal { background: var(--card); border: 1px solid var(--border); border-radius: 24px; box-shadow: 0 16px 48px rgba(0,0,0,0.15); backdrop-filter: blur(16px); padding: 32px; width: 100%; max-width: 360px; position: relative; }
+    .auth-close { position: absolute; top: 14px; right: 14px; background: none; border: none; cursor: pointer; color: var(--text-muted); padding: 6px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: background 0.15s; }
+    .auth-close:hover { background: var(--input-bg); }
+    .auth-logo { font-size: 18px; font-weight: 600; color: var(--text); margin-bottom: 20px; }
+    .auth-tabs { display: flex; gap: 4px; background: var(--input-bg); border-radius: 12px; padding: 4px; margin-bottom: 20px; }
+    .auth-tab { flex: 1; padding: 8px; border-radius: 9px; border: none; background: none; cursor: pointer; font-family: inherit; font-size: 14px; font-weight: 500; color: var(--text-muted); transition: all 0.15s; }
+    .auth-tab.active { background: var(--card); color: var(--text); box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+    .auth-label { display: block; font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 6px; }
+    .auth-input { width: 100%; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text); font-family: inherit; font-size: 14px; outline: none; transition: box-shadow 0.2s; margin-bottom: 14px; }
+    .auth-input:focus { box-shadow: 0 0 0 2px var(--primary); }
+    .auth-error { font-size: 13px; color: #dc2626; margin-bottom: 12px; line-height: 1.4; display: none; }
+    .auth-submit { width: 100%; justify-content: center; margin-top: 2px; }
+    .auth-hr { border: none; border-top: 1px solid var(--border); margin: 20px 0 16px; }
+    .auth-guest-link { background: none; border: none; cursor: pointer; font-family: inherit; font-size: 13px; color: var(--accent); padding: 0; text-align: center; width: 100%; }
+    .auth-guest-link:hover { color: var(--text); }
+    /* Signed-in view inside the modal */
+    .auth-signed-in { text-align: center; }
+    .auth-avatar { width: 52px; height: 52px; border-radius: 50%; background: var(--primary); color: white; font-size: 22px; font-weight: 700; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; }
+    .auth-email { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 4px; word-break: break-all; }
+    .auth-role { font-size: 12px; color: var(--text-muted); margin-bottom: 20px; }
+    .auth-signout { width: 100%; justify-content: center; }
 
     /* Card */
     .card { background: var(--card); border: 1px solid var(--border); border-radius: 24px; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.06); backdrop-filter: blur(8px); margin-bottom: 12px; }
@@ -193,8 +213,8 @@
           <button type="button" class="account-btn" id="accountBtn" title="Account">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
             <div class="account-dot"></div>
+            <div class="account-initial" id="accountInitial"></div>
           </button>
-          <div class="account-popover" id="accountPopover"></div>
         </div>
       </div>
     </div>
@@ -347,6 +367,16 @@
   </div>
 
 </div><!-- /container -->
+
+<!-- Auth modal -->
+<div class="auth-overlay" id="authOverlay">
+  <div class="auth-modal" id="authModal">
+    <button type="button" class="auth-close" id="authCloseBtn" title="Close">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <div id="authModalContent"></div>
+  </div>
+</div>
 
 <script>
 // ── Utilities ──────────────────────────────────────────────
@@ -554,63 +584,142 @@ async function checkNotionStatus() {
     render(); // refresh syncLabel pill
 }
 
-// ── Account popover ────────────────────────────────────────
+// ── App auth state ─────────────────────────────────────────
+let appUser  = null; // { id, email } | null
+let authMode = 'signup';
+
+async function checkAppAuth() {
+    try {
+        const res = await fetch(`${BACKEND_URL}/api/auth/me`, { credentials: 'include' });
+        if (res.ok) {
+            const data = await res.json();
+            appUser = data.user || null;
+        }
+    } catch { /* server unavailable — stay as guest */ }
+    renderAccountBtn();
+}
+
+// ── Account button ─────────────────────────────────────────
 function renderAccountBtn() {
-    const btn = document.getElementById('accountBtn');
+    const btn     = document.getElementById('accountBtn');
+    const initial = document.getElementById('accountInitial');
     if (!btn) return;
-    btn.className = notionStatus === 'connected' ? 'account-btn connected' : 'account-btn';
+
+    const notionOk = notionStatus === 'connected';
+    const classes  = ['account-btn'];
+    if (appUser)    classes.push('signed-in');
+    if (notionOk)   classes.push('notion-connected');
+    btn.className = classes.join(' ');
+
+    if (initial) initial.textContent = appUser ? appUser.email[0].toUpperCase() : '';
 }
 
-function renderAccountPopover() {
-    const pop = document.getElementById('accountPopover');
-    if (!pop) return;
+// ── Auth modal ─────────────────────────────────────────────
+function openAuthModal() {
+    renderAuthModal();
+    document.getElementById('authOverlay').classList.add('open');
+}
+function closeAuthModal() {
+    document.getElementById('authOverlay').classList.remove('open');
+}
 
-    if (notionStatus === 'connected') {
-        const ws = notionWorkspace ? escapeHtml(notionWorkspace) : 'Notion';
-        pop.innerHTML = `
-            <p class="ap-label">Account</p>
-            <div class="ap-workspace">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
-              ${ws}
-            </div>
-            <hr class="ap-divider">
-            <button type="button" class="btn btn-secondary ap-btn" id="apDisconnectBtn">Disconnect</button>`;
-        document.getElementById('apDisconnectBtn').addEventListener('click', () => {
-            closeAccountPopover();
-            disconnectNotion();
+function renderAuthModal() {
+    const content = document.getElementById('authModalContent');
+    if (!content) return;
+
+    if (appUser) {
+        content.innerHTML = `
+            <div class="auth-signed-in">
+              <div class="auth-avatar">${escapeHtml(appUser.email[0].toUpperCase())}</div>
+              <div class="auth-email">${escapeHtml(appUser.email)}</div>
+              <div class="auth-role">Focus Timer account</div>
+              <button type="button" class="btn btn-secondary auth-signout" id="authSignOutBtn">Sign out</button>
+            </div>`;
+        document.getElementById('authSignOutBtn').addEventListener('click', async () => {
+            try { await fetch(`${BACKEND_URL}/api/auth/app-logout`, { method: 'POST', credentials: 'include' }); } catch {}
+            appUser = null;
+            closeAuthModal();
+            renderAccountBtn();
         });
-    } else if (notionStatus === 'checking' || notionStatus === 'verifying') {
-        pop.innerHTML = `<p class="ap-hint" style="margin-bottom:0;">Checking connection&hellip;</p>`;
-    } else {
-        pop.innerHTML = `
-            <p class="ap-guest">Signed in as Guest</p>
-            <p class="ap-hint">Connect Notion to save your history across devices and browsers.</p>
-            <button type="button" class="btn btn-primary ap-btn" id="apConnectBtn">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-              Connect Notion
-            </button>`;
-        document.getElementById('apConnectBtn').addEventListener('click', () => {
-            closeAccountPopover();
-            connectNotion();
-        });
+        return;
     }
+
+    content.innerHTML = `
+        <div class="auth-logo">Focus Timer</div>
+        <div class="auth-tabs">
+          <button type="button" class="auth-tab ${authMode === 'signup' ? 'active' : ''}" id="authTabSignup">Sign up</button>
+          <button type="button" class="auth-tab ${authMode === 'login'  ? 'active' : ''}" id="authTabLogin">Log in</button>
+        </div>
+        <label class="auth-label" for="authEmail">Email</label>
+        <input type="email" class="auth-input" id="authEmail" placeholder="you@example.com" autocomplete="email">
+        <label class="auth-label" for="authPassword">Password</label>
+        <input type="password" class="auth-input" id="authPassword" placeholder="••••••••" autocomplete="${authMode === 'signup' ? 'new-password' : 'current-password'}">
+        <p class="auth-error" id="authError"></p>
+        <button type="button" class="btn btn-primary auth-submit" id="authSubmitBtn">
+          ${authMode === 'signup' ? 'Sign up' : 'Log in'}
+        </button>
+        <hr class="auth-hr">
+        <button type="button" class="auth-guest-link" id="authGuestBtn">Continue as guest</button>`;
+
+    document.getElementById('authTabSignup').addEventListener('click', () => { authMode = 'signup'; renderAuthModal(); document.getElementById('authEmail')?.focus(); });
+    document.getElementById('authTabLogin').addEventListener('click',  () => { authMode = 'login';  renderAuthModal(); document.getElementById('authEmail')?.focus(); });
+    document.getElementById('authGuestBtn').addEventListener('click', closeAuthModal);
+    document.getElementById('authSubmitBtn').addEventListener('click', submitAuth);
+    document.getElementById('authPassword').addEventListener('keydown', e => { if (e.key === 'Enter') submitAuth(); });
 }
 
-function openAccountPopover() {
-    renderAccountPopover();
-    document.getElementById('accountPopover').classList.add('open');
-}
-function closeAccountPopover() {
-    document.getElementById('accountPopover')?.classList.remove('open');
+async function submitAuth() {
+    const emailEl  = document.getElementById('authEmail');
+    const passEl   = document.getElementById('authPassword');
+    const errorEl  = document.getElementById('authError');
+    const submitBtn = document.getElementById('authSubmitBtn');
+    if (!emailEl || !passEl) return;
+
+    const email    = emailEl.value.trim();
+    const password = passEl.value;
+    errorEl.style.display = 'none';
+
+    if (!email || !password) {
+        errorEl.textContent = 'Please enter your email and password.';
+        errorEl.style.display = '';
+        return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = authMode === 'signup' ? 'Creating account…' : 'Signing in…';
+
+    try {
+        const endpoint = authMode === 'signup' ? '/api/auth/register' : '/api/auth/login';
+        const res  = await fetch(`${BACKEND_URL}${endpoint}`, {
+            method:      'POST',
+            credentials: 'include',
+            headers:     { 'Content-Type': 'application/json' },
+            body:        JSON.stringify({ email, password, guestId: getGuestId() }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            errorEl.textContent = data.error || 'Something went wrong. Please try again.';
+            errorEl.style.display = '';
+        } else {
+            appUser = data.user;
+            closeAuthModal();
+            renderAccountBtn();
+            pullAndMergeState();
+        }
+    } catch {
+        errorEl.textContent = 'Could not reach the server. Check your connection.';
+        errorEl.style.display = '';
+    }
+
+    submitBtn.disabled = false;
+    submitBtn.textContent = authMode === 'signup' ? 'Sign up' : 'Log in';
 }
 
-document.getElementById('accountBtn').addEventListener('click', e => {
-    e.stopPropagation();
-    const pop = document.getElementById('accountPopover');
-    pop.classList.contains('open') ? closeAccountPopover() : openAccountPopover();
+document.getElementById('accountBtn').addEventListener('click', openAuthModal);
+document.getElementById('authCloseBtn').addEventListener('click', closeAuthModal);
+document.getElementById('authOverlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('authOverlay')) closeAuthModal();
 });
-document.getElementById('accountPopover').addEventListener('click', e => e.stopPropagation());
-document.addEventListener('click', closeAccountPopover);
 
 function renderNotionSync() {
     const panel = document.getElementById('notionSyncPanel');
@@ -1320,6 +1429,8 @@ if (_oauthParams.has('notion_error')) {
 // Render the panel immediately so it's never blank while the async fetch runs.
 renderNotionSync();
 renderAccountBtn();
+// Check if user has an active email/password session from a previous visit.
+checkAppAuth();
 
 // Pull canonical state from the backend immediately on load.
 // Works for guests (X-Guest-ID) and Notion users (Bearer).
