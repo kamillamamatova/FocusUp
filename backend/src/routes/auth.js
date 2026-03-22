@@ -17,11 +17,43 @@
 
 const { randomBytes, scrypt, timingSafeEqual } = require('crypto');
 const { promisify }  = require('util');
+const nodemailer     = require('nodemailer');
 const router         = require('express').Router();
 const {
     saveToken, getToken, deleteToken, saveClientToken, getTokenByClientToken,
     migrateGuestToNotion, createUser, getUserByEmail, getUserById, migrateGuestToApp,
+    createResetToken, getResetToken, markResetTokenUsed, updateUserPassword,
 } = require('../db');
+
+// ── Email transport (optional — falls back to console log if not configured) ─
+function makeTransport() {
+    const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS } = process.env;
+    if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) return null;
+    return nodemailer.createTransport({
+        host: SMTP_HOST,
+        port: parseInt(SMTP_PORT || '587', 10),
+        secure: parseInt(SMTP_PORT || '587', 10) === 465,
+        auth: { user: SMTP_USER, pass: SMTP_PASS },
+    });
+}
+
+async function sendResetEmail(toEmail, resetLink) {
+    const transport = makeTransport();
+    const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'FocusUp <noreply@focusup.app>';
+    if (!transport) {
+        // Dev fallback — print the link so it can be used without an email service.
+        console.log(`\n[FocusUp] Password reset requested for ${toEmail}`);
+        console.log(`[FocusUp] Reset link (expires in 1 hour):\n  ${resetLink}\n`);
+        return;
+    }
+    await transport.sendMail({
+        from,
+        to:      toEmail,
+        subject: 'Reset your FocusUp password',
+        text:    `Click the link below to reset your password. It expires in 1 hour.\n\n${resetLink}\n\nIf you didn't request this, you can ignore this email.`,
+        html:    `<p>Click the link below to reset your FocusUp password. It expires in 1 hour.</p><p><a href="${resetLink}">${resetLink}</a></p><p>If you didn't request this, you can ignore this email.</p>`,
+    });
+}
 
 // ── Password hashing (Node built-in crypto.scrypt, no extra deps) ─────────
 const scryptAsync = promisify(scrypt);
@@ -125,6 +157,69 @@ router.post('/app-logout', (req, res) => {
     delete req.session.userEmail;
     req.session.save(() => {});
     res.json({ ok: true });
+});
+
+// ── POST /api/auth/forgot-password ────────────────────────
+router.post('/forgot-password', async (req, res) => {
+    const { email } = req.body || {};
+    if (typeof email !== 'string' || !email.includes('@')) {
+        return res.status(400).json({ error: 'A valid email address is required.' });
+    }
+
+    // Always respond with success to prevent email enumeration.
+    const user = getUserByEmail(email.trim());
+    if (!user) return res.json({ ok: true });
+
+    const token     = randomBytes(32).toString('hex');
+    const frontendBase = process.env.FRONTEND_URL.split(',')[0].trim().replace(/\/$/, '');
+    const resetLink = `${frontendBase}/?reset_token=${token}`;
+
+    createResetToken(token, user.id);
+
+    try {
+        await sendResetEmail(user.email, resetLink);
+    } catch (err) {
+        console.error('Failed to send reset email:', err.message);
+        return res.status(502).json({ error: 'Could not send the reset email. Please try again.' });
+    }
+
+    res.json({ ok: true });
+});
+
+// ── POST /api/auth/reset-password ────────────────────────
+router.post('/reset-password', async (req, res) => {
+    const { token, password } = req.body || {};
+
+    if (typeof token !== 'string' || !token) {
+        return res.status(400).json({ error: 'Reset token is missing.' });
+    }
+    if (typeof password !== 'string' || password.length < 8) {
+        return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+    }
+
+    const row = getResetToken(token);
+    if (!row || row.used || row.expires_at < Date.now()) {
+        return res.status(400).json({ error: 'This reset link has expired or already been used. Please request a new one.' });
+    }
+
+    try {
+        const hash = await hashPassword(password);
+        updateUserPassword(row.user_id, hash);
+        markResetTokenUsed(token);
+
+        // Log the user in automatically after reset.
+        const user = getUserById(row.user_id);
+        if (user) {
+            req.session.userId    = user.id;
+            req.session.userEmail = user.email;
+            req.session.save(() => {});
+            return res.json({ ok: true, user: { id: user.id, email: user.email } });
+        }
+        res.json({ ok: true });
+    } catch (err) {
+        console.error('Reset password error:', err.message);
+        res.status(500).json({ error: 'Could not reset password. Please try again.' });
+    }
 });
 
 const NOTION_OAUTH_BASE = 'https://api.notion.com/v1/oauth/authorize';

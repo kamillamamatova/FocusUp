@@ -66,6 +66,11 @@
     .auth-hr { border: none; border-top: 1px solid var(--border); margin: 20px 0 16px; }
     .auth-guest-link { background: none; border: none; cursor: pointer; font-family: inherit; font-size: 13px; color: var(--accent); padding: 0; text-align: center; width: 100%; }
     .auth-guest-link:hover { color: var(--text); }
+    .auth-forgot { background: none; border: none; cursor: pointer; font-family: inherit; font-size: 12px; color: var(--accent); padding: 0; display: block; text-align: right; margin-top: -10px; margin-bottom: 14px; }
+    .auth-forgot:hover { color: var(--text); }
+    .auth-back { background: none; border: none; cursor: pointer; font-family: inherit; font-size: 13px; color: var(--accent); padding: 0; display: flex; align-items: center; gap: 4px; margin-bottom: 16px; }
+    .auth-back:hover { color: var(--text); }
+    .auth-success { font-size: 13px; color: var(--success); background: var(--success-bg); border: 1px solid var(--success-border); border-radius: 10px; padding: 10px 14px; line-height: 1.5; }
     /* Signed-in view inside the modal */
     .auth-signed-in { text-align: center; }
     .auth-avatar { width: 52px; height: 52px; border-radius: 50%; background: var(--primary); color: white; font-size: 22px; font-weight: 700; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; }
@@ -646,6 +651,44 @@ function renderAuthModal() {
         return;
     }
 
+    // ── Forgot password view ───────────────────────────────
+    if (authMode === 'forgot') {
+        content.innerHTML = `
+            <button type="button" class="auth-back" id="authBackBtn">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              Back to log in
+            </button>
+            <div class="auth-logo">Forgot password?</div>
+            <p class="auth-hint" style="margin-top:0;margin-bottom:16px;">Enter your email and we'll send you a reset link. Check your spam folder if it doesn't show up within a minute.</p>
+            <label class="auth-label" for="authEmail">Email</label>
+            <input type="email" class="auth-input" id="authEmail" placeholder="you@example.com" autocomplete="email">
+            <p class="auth-error" id="authError"></p>
+            <div id="authSuccess" style="display:none;" class="auth-success"></div>
+            <button type="button" class="btn btn-primary auth-submit" id="authSubmitBtn">Send reset link</button>`;
+        document.getElementById('authBackBtn').addEventListener('click', () => { authMode = 'login'; renderAuthModal(); });
+        document.getElementById('authSubmitBtn').addEventListener('click', submitForgot);
+        document.getElementById('authEmail').addEventListener('keydown', e => { if (e.key === 'Enter') submitForgot(); });
+        document.getElementById('authEmail').focus();
+        return;
+    }
+
+    // ── Reset password view (arrived via link in email) ────
+    if (authMode === 'reset') {
+        content.innerHTML = `
+            <div class="auth-logo">Set new password</div>
+            <p class="auth-hint" style="margin-top:0;margin-bottom:16px;">Choose a new password for your account.</p>
+            <label class="auth-label" for="authPassword">New password</label>
+            <input type="password" class="auth-input" id="authPassword" placeholder="••••••••" autocomplete="new-password">
+            <p class="auth-hint">At least 8 characters.</p>
+            <p class="auth-error" id="authError"></p>
+            <button type="button" class="btn btn-primary auth-submit" id="authSubmitBtn">Set password</button>`;
+        document.getElementById('authSubmitBtn').addEventListener('click', submitReset);
+        document.getElementById('authPassword').addEventListener('keydown', e => { if (e.key === 'Enter') submitReset(); });
+        document.getElementById('authPassword').focus();
+        return;
+    }
+
+    // ── Sign up / Log in view ──────────────────────────────
     content.innerHTML = `
         <div class="auth-logo">Focus Timer</div>
         <div class="auth-tabs">
@@ -656,7 +699,7 @@ function renderAuthModal() {
         <input type="email" class="auth-input" id="authEmail" placeholder="you@example.com" autocomplete="email">
         <label class="auth-label" for="authPassword">Password</label>
         <input type="password" class="auth-input" id="authPassword" placeholder="••••••••" autocomplete="${authMode === 'signup' ? 'new-password' : 'current-password'}">
-        ${authMode === 'signup' ? '<p class="auth-hint">At least 8 characters' : ''}
+        ${authMode === 'signup' ? '<p class="auth-hint">At least 8 characters. That\'s it.</p>' : '<button type="button" class="auth-forgot" id="authForgotBtn">Forgot password?</button>'}
         <p class="auth-error" id="authError"></p>
         <button type="button" class="btn btn-primary auth-submit" id="authSubmitBtn">
           ${authMode === 'signup' ? 'Sign up' : 'Log in'}
@@ -667,6 +710,7 @@ function renderAuthModal() {
     document.getElementById('authTabSignup').addEventListener('click', () => { authMode = 'signup'; renderAuthModal(); document.getElementById('authEmail')?.focus(); });
     document.getElementById('authTabLogin').addEventListener('click',  () => { authMode = 'login';  renderAuthModal(); document.getElementById('authEmail')?.focus(); });
     document.getElementById('authGuestBtn').addEventListener('click', closeAuthModal);
+    document.getElementById('authForgotBtn')?.addEventListener('click', () => { authMode = 'forgot'; renderAuthModal(); });
     document.getElementById('authSubmitBtn').addEventListener('click', submitAuth);
     document.getElementById('authPassword').addEventListener('keydown', e => { if (e.key === 'Enter') submitAuth(); });
 }
@@ -717,6 +761,98 @@ async function submitAuth() {
 
     submitBtn.disabled = false;
     submitBtn.textContent = authMode === 'signup' ? 'Sign up' : 'Log in';
+}
+
+async function submitForgot() {
+    const emailEl  = document.getElementById('authEmail');
+    const errorEl  = document.getElementById('authError');
+    const successEl = document.getElementById('authSuccess');
+    const submitBtn = document.getElementById('authSubmitBtn');
+    if (!emailEl) return;
+
+    const email = emailEl.value.trim();
+    errorEl.style.display = 'none';
+    successEl.style.display = 'none';
+
+    if (!email || !email.includes('@')) {
+        errorEl.textContent = 'Please enter a valid email address.';
+        errorEl.style.display = '';
+        return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Sending…';
+
+    try {
+        const res  = await fetch(`${BACKEND_URL}/api/auth/forgot-password`, {
+            method:      'POST',
+            credentials: 'include',
+            headers:     { 'Content-Type': 'application/json' },
+            body:        JSON.stringify({ email }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            errorEl.textContent = data.error || 'Something went wrong. Please try again.';
+            errorEl.style.display = '';
+        } else {
+            emailEl.style.display   = 'none';
+            submitBtn.style.display = 'none';
+            successEl.textContent   = `If an account exists for ${email}, a reset link is on its way. Check your inbox (and spam folder).`;
+            successEl.style.display = '';
+        }
+    } catch {
+        errorEl.textContent = 'Could not reach the server. Check your connection.';
+        errorEl.style.display = '';
+    }
+
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Send reset link';
+}
+
+async function submitReset() {
+    const passEl   = document.getElementById('authPassword');
+    const errorEl  = document.getElementById('authError');
+    const submitBtn = document.getElementById('authSubmitBtn');
+    if (!passEl) return;
+
+    const password = passEl.value;
+    errorEl.style.display = 'none';
+
+    if (password.length < 8) {
+        errorEl.textContent = 'Password must be at least 8 characters.';
+        errorEl.style.display = '';
+        return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Saving…';
+
+    try {
+        const res  = await fetch(`${BACKEND_URL}/api/auth/reset-password`, {
+            method:      'POST',
+            credentials: 'include',
+            headers:     { 'Content-Type': 'application/json' },
+            body:        JSON.stringify({ token: _pendingResetToken, password }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            errorEl.textContent = data.error || 'Could not reset password. Please request a new link.';
+            errorEl.style.display = '';
+        } else {
+            _pendingResetToken = null;
+            appUser = data.user || null;
+            closeAuthModal();
+            renderAccountBtn();
+            render();
+            if (appUser) pullAndMergeState();
+        }
+    } catch {
+        errorEl.textContent = 'Could not reach the server. Check your connection.';
+        errorEl.style.display = '';
+    }
+
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Set password';
 }
 
 document.getElementById('accountBtn').addEventListener('click', openAuthModal);
@@ -1415,7 +1551,8 @@ if ((settings.themeMode || 'light') === 'dark') {
 recomputeBestStreak();
 render();
 
-// Handle OAuth return — Notion redirects back with ?notion_connected or ?notion_error
+// ── Handle URL params on return ────────────────────────────
+let _pendingResetToken = null;
 const _oauthParams = new URLSearchParams(location.search);
 if (_oauthParams.has('notion_error')) {
     notionStatus   = 'error';
@@ -1429,6 +1566,12 @@ if (_oauthParams.has('notion_error')) {
     sessionStorage.setItem('notionJustConnected', '1');
     notionStatus = 'verifying';
     history.replaceState({}, '', location.pathname);
+} else if (_oauthParams.has('reset_token')) {
+    _pendingResetToken = _oauthParams.get('reset_token');
+    history.replaceState({}, '', location.pathname);
+    // Open the reset-password modal after the page renders.
+    authMode = 'reset';
+    requestAnimationFrame(() => openAuthModal());
 }
 
 // Render the panel immediately so it's never blank while the async fetch runs.

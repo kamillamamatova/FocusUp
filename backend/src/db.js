@@ -95,6 +95,16 @@ db.exec(`
     )
 `);
 
+// Time-limited password reset tokens (expire after 1 hour, single-use).
+db.exec(`
+    CREATE TABLE IF NOT EXISTS reset_tokens (
+        token      TEXT    PRIMARY KEY,
+        user_id    TEXT    NOT NULL,
+        expires_at INTEGER NOT NULL,
+        used       INTEGER NOT NULL DEFAULT 0
+    )
+`);
+
 // One-time migration: promote rows from the old app_state table (keyed by workspace_id)
 // into user_state so no data is lost after the schema upgrade.
 try {
@@ -307,6 +317,27 @@ function migrateGuestToApp(guestId, userId) {
     console.log(`Migrated guest ${guestId.slice(0, 8)}… → app user ${userId.slice(0, 8)}…`);
 }
 
+// ── Password reset tokens ──────────────────────────────────
+
+function createResetToken(token, userId) {
+    const expiresAt = Date.now() + 60 * 60 * 1000; // 1 hour
+    db.prepare(`
+        INSERT OR REPLACE INTO reset_tokens (token, user_id, expires_at, used) VALUES (?, ?, ?, 0)
+    `).run(token, userId, expiresAt);
+}
+
+function getResetToken(token) {
+    return db.prepare('SELECT * FROM reset_tokens WHERE token = ?').get(token) || null;
+}
+
+function markResetTokenUsed(token) {
+    db.prepare('UPDATE reset_tokens SET used = 1 WHERE token = ?').run(token);
+}
+
+function updateUserPassword(userId, passwordHash) {
+    db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(passwordHash, userId);
+}
+
 /** Graceful shutdown. */
 function close() {
     db.close();
@@ -320,5 +351,6 @@ module.exports = {
     saveUserState, getUserState,
     migrateGuestToNotion, getWorkspaceForGuest,
     createUser, getUserByEmail, getUserById, migrateGuestToApp,
+    createResetToken, getResetToken, markResetTokenUsed, updateUserPassword,
     close,
 };
