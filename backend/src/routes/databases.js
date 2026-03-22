@@ -12,45 +12,64 @@ const { saveSelectedDb } = require('../db');
 
 // ── GET /api/databases ────────────────────────────────────
 router.get('/', requireAuth, async (req, res) => {
+    const headers = {
+        'Authorization':  `Bearer ${req.notionToken}`,
+        'Notion-Version': '2022-06-28',
+        'Content-Type':   'application/json',
+    };
+
     try {
-        const notionRes = await fetch('https://api.notion.com/v1/search', {
-            method: 'POST',
-            headers: {
-                'Authorization':  `Bearer ${req.notionToken}`,
-                'Notion-Version': '2022-06-28',
-                'Content-Type':   'application/json',
-            },
-            body: JSON.stringify({
+        // Paginate through all accessible databases (Notion caps each page at 100).
+        const allResults = [];
+        let cursor = undefined;
+
+        do {
+            const body = {
                 filter:    { value: 'database', property: 'object' },
                 sort:      { direction: 'descending', timestamp: 'last_edited_time' },
-                page_size: 50,
-            }),
-        });
+                page_size: 100,
+            };
+            if (cursor) body.start_cursor = cursor;
 
-        const data = await notionRes.json();
-
-        if (!notionRes.ok) {
-            if (notionRes.status === 401) {
-                return res.status(401).json({ error: 'Notion token expired — please reconnect' });
-            }
-            console.error('Notion search error — status:', notionRes.status, 'code:', data?.code);
-            return res.status(502).json({
-                error: data?.message || `Notion API error (HTTP ${notionRes.status})`,
+            const notionRes = await fetch('https://api.notion.com/v1/search', {
+                method: 'POST',
+                headers,
+                body:   JSON.stringify(body),
             });
+
+            const data = await notionRes.json();
+
+            if (!notionRes.ok) {
+                if (notionRes.status === 401) {
+                    return res.status(401).json({ error: 'Notion token expired — please reconnect' });
+                }
+                console.error('Notion search error — status:', notionRes.status, 'code:', data?.code);
+                return res.status(502).json({
+                    error: data?.message || `Notion API error (HTTP ${notionRes.status})`,
+                });
+            }
+
+            allResults.push(...(data.results || []));
+            cursor = data.has_more ? data.next_cursor : null;
+        } while (cursor);
+
+        // Diagnostic log — shows exactly what Notion returned so you can confirm
+        // which databases the integration currently has access to.
+        console.log(`Notion search returned ${allResults.length} database(s) total:`);
+        for (const db of allResults) {
+            console.log(`  id=${db.id}  title=${JSON.stringify(db.title)}  parent=${JSON.stringify(db.parent)}  url=${db.url}`);
         }
 
-        // Diagnostic: log the raw title/icon/url for each result so the server log
-        // shows exactly what Notion returned for each database.
-        console.log(`Notion search returned ${(data.results || []).length} database(s):`);
-        for (const db of (data.results || [])) {
-            console.log(`  id=${db.id}  title=${JSON.stringify(db.title)}  icon=${JSON.stringify(db.icon)}  url=${db.url}`);
-        }
-
-        const databases = (data.results || []).map(db => ({
-            id:   db.id,
-            name: databaseName(db),
-            icon: iconToString(db.icon),
-            url:  db.url || null,
+        // For each database, try to resolve the parent page title so inline/
+        // untitled databases can be identified as "Database in [Page Name]".
+        const databases = await Promise.all(allResults.map(async db => {
+            const name = await resolvedName(db, headers);
+            return {
+                id:   db.id,
+                name,
+                icon: iconToString(db.icon),
+                url:  db.url || null,
+            };
         }));
 
         res.json({ databases });
@@ -75,17 +94,16 @@ router.post('/select', requireAuth, (req, res) => {
 // ── Helpers ───────────────────────────────────────────────
 
 /**
- * Extract a human-readable name for a database object.
+ * Resolve a human-readable name for a database, making an extra API call to
+ * fetch the parent page title when the database itself has no name.
  *
  * Resolution order:
- *   1. db.title array (the page-level header title — set when you type a name
- *      in the big heading area at the top of the database page in Notion)
- *   2. URL slug — Notion encodes the title in the URL path before the 32-char ID;
- *      e.g. ".../My-Focus-Log-abc123..." → "My Focus Log"
- *      Useful when db.title is empty but the database has a visible name in Notion.
- *   3. "Untitled" — last resort fallback
+ *   1. db.title rich-text array (set when you type a name in the database header)
+ *   2. URL slug (Notion encodes the title before the 32-char ID in the URL)
+ *   3. Parent page title (for inline/untitled databases — "Database in <Page>")
+ *   4. "Untitled" — last resort
  */
-function databaseName(db) {
+async function resolvedName(db, headers) {
     // 1. Explicit title field
     const fromTitle = richTextToPlain(db.title);
     if (fromTitle) return fromTitle;
@@ -94,7 +112,33 @@ function databaseName(db) {
     const fromUrl = urlSlugToName(db.url);
     if (fromUrl) return fromUrl;
 
+    // 3. Try to name the database by its parent page title.
+    //    Inline databases have parent.type === 'page_id'.
+    //    This requires one extra API call per unnamed database.
+    const parentPageId = db.parent?.type === 'page_id' ? db.parent.page_id : null;
+    if (parentPageId) {
+        try {
+            const pageRes = await fetch(`https://api.notion.com/v1/pages/${parentPageId}`, { headers });
+            if (pageRes.ok) {
+                const page = await pageRes.json();
+                // Page titles live in properties.title (most pages) or the Name property.
+                const titleProp = page.properties?.title || page.properties?.Name;
+                const pageTitle = richTextToPlain(titleProp?.title);
+                if (pageTitle) return `Database in "${pageTitle}"`;
+            }
+        } catch {
+            // Non-fatal — fall through to 'Untitled'
+        }
+    }
+
     return 'Untitled';
+}
+
+/** Synchronous name extraction (title + URL slug only, no API call). */
+function databaseName(db) {
+    const fromTitle = richTextToPlain(db.title);
+    if (fromTitle) return fromTitle;
+    return urlSlugToName(db.url) || 'Untitled';
 }
 
 function richTextToPlain(arr) {

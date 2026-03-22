@@ -611,7 +611,7 @@ function renderNotionSync() {
         : '';
     panel.innerHTML = `
         ${errorLine}
-        <p class="notion-desc">Connect your Notion workspace to automatically save your daily focus log there when you finish each day.</p>
+        <p class="notion-desc">Connect Notion to save your daily focus log directly into a Notion database — so your focus history lives in Notion as a table you can filter, view, and annotate alongside your other notes.</p>
         <button type="button" class="btn btn-primary" id="connectNotionBtn" style="gap:8px;">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
           ${notionStatus === 'error' ? 'Try again' : 'Connect Notion'}
@@ -662,9 +662,13 @@ function renderDbPickerHTML() {
         if (notionDbList.length === 0) {
             return `<div class="db-picker-section">
                 <div class="db-picker-title">No databases found</div>
-                <p class="notion-desc" style="margin-top:8px;">No Notion databases were shared with FocusUp. When you signed in, Notion asked which pages to give access to — make sure you selected at least one database (a table in Notion). You can sign in again to update your selection.</p>
-                <button type="button" class="btn btn-secondary" id="reconnectBtn" style="padding:7px 16px;font-size:13px;margin-right:8px;">Sign in again</button>
-                <button type="button" class="btn btn-secondary" id="loadDbsBtn" style="padding:7px 16px;font-size:13px;">Refresh</button>
+                <p class="notion-desc" style="margin-top:8px;">FocusUp doesn't have access to any databases yet. Notion only shares pages you explicitly select. To fix this, do <strong>either</strong> of the following:</p>
+                <ol class="notion-desc" style="margin:8px 0 12px 0;padding-left:18px;line-height:1.8;">
+                  <li>Open your database in Notion → click <strong>···</strong> (top-right) → <strong>Connections</strong> → add <strong>FocusUp</strong>. Then click Refresh below.</li>
+                  <li>Or click <strong>Sign in again</strong> and select the page your database is on when Notion asks.</li>
+                </ol>
+                <button type="button" class="btn btn-secondary" id="loadDbsBtn" style="padding:7px 16px;font-size:13px;margin-right:8px;">Refresh</button>
+                <button type="button" class="btn btn-secondary" id="reconnectBtn" style="padding:7px 16px;font-size:13px;">Sign in again</button>
                 ${schemaNote}
             </div>`;
         }
@@ -685,18 +689,24 @@ function renderDbPickerHTML() {
               <span class="db-item-name">${escapeHtml(db.name)}${urlHint}</span>
             </button>`;
         }).join('');
+        const accessNote = `<p class="notion-desc" style="margin-top:10px;font-size:12px;">
+            <strong>Don't see your database?</strong> FocusUp can only access databases on pages you explicitly shared with it.
+            Open your database in Notion, click <strong>···</strong> (top-right) → <strong>Connections</strong> → add <strong>FocusUp</strong>.
+            Then click <button type="button" class="btn btn-secondary" id="loadDbsBtn" style="padding:3px 10px;font-size:12px;display:inline;">Refresh</button>.
+        </p>`;
         return `<div class="db-picker-section">
             <div class="db-picker-title">Choose a database <span style="font-weight:400;opacity:0.7;">(optional)</span></div>
-            <p class="db-picker-hint">Pick the Notion database (table) where your focus logs should be saved. FocusUp adds a row automatically each time you finish a day. You can change this any time.</p>
+            <p class="db-picker-hint">Pick the Notion database where your focus logs should be saved. FocusUp adds a row each time you finish a day.</p>
             <div class="db-list">${items}</div>
             ${schemaNote}
+            ${accessNote}
         </div>`;
     }
 
     // Not yet loaded — show optional prompt
     return `<div class="db-picker-section">
         <div class="db-picker-title">Save logs to Notion automatically <span style="font-weight:400;opacity:0.7;">(optional)</span></div>
-        <p class="notion-desc" style="margin-top:8px;">A Notion database is just a table — it's where your focus history gets saved. Choose one below and FocusUp will add a row every time you finish a day. You can skip this for now and set it up later.</p>
+        <p class="notion-desc" style="margin-top:8px;">Every time you click <strong>Finish Day</strong>, FocusUp adds a row to a Notion database with your date, minutes focused, goal, and whether you hit it. Pick a database below to enable this.</p>
         <button type="button" class="btn btn-secondary" id="loadDbsBtn" style="padding:7px 16px;font-size:13px;gap:8px;">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></svg>
           Show my Notion databases
