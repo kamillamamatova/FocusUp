@@ -316,7 +316,7 @@
 
   <div class="footer">
     <p>To add FocusUp to a Notion page: host it at a public URL, then use /embed</p>
-    <p>Connect Notion to sync your history and goal across browsers and devices &mdash; without it, data stays in this browser</p>
+    <p>Connect Notion to sync your history and goal across browsers and devices, without it, data stays in this browser</p>
   </div>
 
 </div><!-- /container -->
@@ -532,7 +532,7 @@ function renderNotionSync() {
 
     if (notionStatus === 'checking' || notionStatus === 'verifying') {
         const msg = notionStatus === 'verifying'
-            ? 'Connected &mdash; verifying your workspace&hellip;'
+            ? 'Connected, verifying your workspace&hellip;'
             : 'Checking connection&hellip;';
         panel.innerHTML = `<p class="notion-desc">${msg}</p>`;
         return;
@@ -585,7 +585,7 @@ function renderNotionSync() {
         const dbSection = renderDbPickerHTML();
         const successNote = notionSelectedDb ? '' : `
             <p class="notion-desc" style="margin-top:10px;margin-bottom:0;">
-                You're all set — your Notion account is linked and your timer works as normal.
+                You're all set, your Notion account is linked and your timer works as normal.
             </p>`;
         panel.innerHTML = `
             <div class="notion-connected-row">
@@ -611,7 +611,7 @@ function renderNotionSync() {
         : '';
     panel.innerHTML = `
         ${errorLine}
-        <p class="notion-desc">Connect Notion to save your daily focus log directly into a Notion database — so your focus history lives in Notion as a table you can filter, view, and annotate alongside your other notes.</p>
+        <p class="notion-desc">Connect Notion to save your daily focus log directly into a Notion database, so your focus history lives in Notion as a table you can filter, view, and annotate alongside your other notes.</p>
         <button type="button" class="btn btn-primary" id="connectNotionBtn" style="gap:8px;">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
           ${notionStatus === 'error' ? 'Try again' : 'Connect Notion'}
@@ -641,7 +641,6 @@ function renderDbPickerHTML() {
             <div class="db-picker-title">Saving logs to</div>
             <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px;">
               <span class="db-selected-badge">
-                <span class="db-icon">&#128218;</span>
                 ${escapeHtml(notionSelectedDb.name)}
               </span>
               <button type="button" class="btn btn-secondary" id="changeDbBtn" style="padding:6px 14px;font-size:12px;">Change</button>
@@ -688,7 +687,7 @@ function renderDbPickerHTML() {
             // null/absent → fallback book emoji.
             const iconHtml = db.icon === '__image__' ? '&#128202;' :
                              db.icon               ? escapeHtml(db.icon) :
-                             '&#128218;';
+                             '';
             // When the name couldn't be resolved from the Notion title field, show
             // a URL hint so the user can identify which database this is.
             const urlHint = db.name === 'Untitled' && db.url
@@ -777,7 +776,7 @@ async function backfillHistory() {
     btn.disabled = false;
     if (failed === 0) {
         statusEl.style.color = 'var(--success, green)';
-        statusEl.textContent = `Done — ${ok} day${ok === 1 ? '' : 's'} synced.`;
+        statusEl.textContent = `Done, ${ok} day${ok === 1 ? '' : 's'} synced.`;
         btn.style.display = 'none';
     } else {
         statusEl.style.color = 'var(--danger, red)';
@@ -793,7 +792,7 @@ async function loadDatabases() {
         const res = await fetch(`${BACKEND_URL}/api/databases`, { credentials: 'include', headers: authHeaders() });
         const data = await res.json();
         if (!res.ok) {
-            notionDbError = data.error || 'Could not load databases — please try again.';
+            notionDbError = data.error || 'Could not load databases, please try again.';
         } else {
             notionDbList = data.databases || [];
         }
@@ -820,7 +819,7 @@ async function selectDatabase(dbId, dbName) {
             const data = await res.json().catch(() => ({}));
             // Revert on failure
             notionSelectedDb = null;
-            notionDbError    = data.error || 'Could not save your selection — please try again.';
+            notionDbError    = data.error || 'Could not save your selection, please try again.';
             renderNotionSync();
         }
     } catch {
@@ -1039,7 +1038,7 @@ const finishDay = async () => {
     state.sessions = [];
     saveState();
     recomputeBestStreak();
-    alert(`Logged ${mins} min for ${date}${met ? ' — goal met!' : ''}.`);
+    alert(`Logged ${mins} min for ${date}${met ? ', goal met!' : ''}.`);
     render();
 
     // Push durable state to server so other devices see the new history entry.
