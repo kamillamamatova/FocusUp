@@ -78,6 +78,14 @@
     .auth-role { font-size: 12px; color: var(--text-muted); margin-bottom: 20px; }
     .auth-signout { width: 100%; justify-content: center; }
 
+    /* Confirm dialog */
+    .confirm-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 1100; align-items: center; justify-content: center; padding: 16px; backdrop-filter: blur(4px); }
+    .confirm-overlay.open { display: flex; }
+    .confirm-modal { background: var(--card); border: 1px solid var(--border); border-radius: 20px; box-shadow: 0 16px 48px rgba(0,0,0,0.15); backdrop-filter: blur(16px); padding: 28px 28px 24px; width: 100%; max-width: 320px; }
+    .confirm-title { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+    .confirm-msg { font-size: 13px; color: var(--text-muted); line-height: 1.55; margin-bottom: 22px; }
+    .confirm-btns { display: flex; gap: 8px; justify-content: flex-end; }
+
     /* Card */
     .card { background: var(--card); border: 1px solid var(--border); border-radius: 24px; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.06); backdrop-filter: blur(8px); margin-bottom: 12px; }
 
@@ -575,6 +583,18 @@
   </div>
 </div>
 
+<!-- Confirm dialog -->
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-modal">
+    <div class="confirm-title" id="confirmTitle"></div>
+    <div class="confirm-msg" id="confirmMsg"></div>
+    <div class="confirm-btns">
+      <button type="button" class="btn btn-secondary" id="confirmCancelBtn" style="padding:9px 20px;font-size:13px;">Cancel</button>
+      <button type="button" class="btn btn-primary" id="confirmOkBtn" style="padding:9px 20px;font-size:13px;">Confirm</button>
+    </div>
+  </div>
+</div>
+
 <!-- Auth modal -->
 <div class="auth-overlay" id="authOverlay">
   <div class="auth-modal" id="authModal">
@@ -834,6 +854,27 @@ function openAuthModal() {
 function closeAuthModal() {
     document.getElementById('authOverlay').classList.remove('open');
 }
+
+let _confirmCallback = null;
+function showConfirm(title, msg, onConfirm) {
+    document.getElementById('confirmTitle').textContent = title;
+    document.getElementById('confirmMsg').textContent   = msg;
+    _confirmCallback = onConfirm;
+    document.getElementById('confirmOverlay').classList.add('open');
+}
+function closeConfirm() {
+    document.getElementById('confirmOverlay').classList.remove('open');
+    _confirmCallback = null;
+}
+document.getElementById('confirmCancelBtn').addEventListener('click', closeConfirm);
+document.getElementById('confirmOkBtn').addEventListener('click', () => {
+    const cb = _confirmCallback;
+    closeConfirm();
+    if (cb) cb();
+});
+document.getElementById('confirmOverlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('confirmOverlay')) closeConfirm();
+});
 
 function renderAuthModal() {
     const content = document.getElementById('authModalContent');
@@ -1571,11 +1612,16 @@ const pauseTimer = () => {
 };
 
 const resetToday = () => {
-    if (!confirm("Reset today's timer? This clears current sessions but keeps history.")) return;
-    if (ticking) pauseTimer();
-    state.sessions = [];
-    saveState();
-    render();
+    showConfirm(
+        'Reset timer?',
+        "This clears today's sessions but keeps your history.",
+        () => {
+            if (ticking) pauseTimer();
+            state.sessions = [];
+            saveState();
+            render();
+        }
+    );
 };
 
 // ── Pomodoro state ─────────────────────────────────────────
@@ -1680,15 +1726,20 @@ const pomoSkip = () => {
 };
 
 const pomoReset = () => {
-    if (!confirm('Reset Pomodoro? This clears the current phase and cycle count.')) return;
-    if (pomoState.running) pomoPause();
-    pomoState.phase            = 'work';
-    pomoState.completedInRound = 0;
-    pomoState.running          = false;
-    pomoState.phaseStartMs     = null;
-    pomoState.pausedRemMs      = null;
-    savePomoState();
-    render();
+    showConfirm(
+        'Reset Pomodoro?',
+        'This clears the current phase and cycle count.',
+        () => {
+            if (pomoState.running) pomoPause();
+            pomoState.phase            = 'work';
+            pomoState.completedInRound = 0;
+            pomoState.running          = false;
+            pomoState.phaseStartMs     = null;
+            pomoState.pausedRemMs      = null;
+            savePomoState();
+            render();
+        }
+    );
 };
 
 // ── Streaks ────────────────────────────────────────────────
