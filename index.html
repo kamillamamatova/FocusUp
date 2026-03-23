@@ -175,17 +175,22 @@
     .streak-hint { font-size: 12px; color: var(--accent); }
 
     /* History */
-    .history-empty { text-align: center; padding: 32px; font-size: 13px; color: var(--accent); }
-    .history-table-wrap { border: 1px solid var(--border); border-radius: 14px; overflow: hidden; max-height: 256px; overflow-y: auto; }
-    table { width: 100%; border-collapse: collapse; }
-    thead { position: sticky; top: 0; background: var(--input-bg); }
-    th { padding: 10px 16px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); font-weight: 600; }
-    tbody { background: var(--table-bg); }
-    td { padding: 10px 16px; font-size: 13px; color: var(--text); border-top: 1px solid var(--border); }
-    tr:hover td { background: var(--table-hover); }
-    .status-badge { display: inline-block; padding: 3px 10px; border-radius: 50px; font-size: 11px; }
-    .status-badge.met { background: var(--success); color: white; }
-    .status-badge.incomplete { background: var(--pill-bg); color: var(--text-muted); }
+    .history-empty { text-align: center; padding: 40px 16px; font-size: 13px; color: var(--accent); }
+    .history-list { display: flex; flex-direction: column; gap: 8px; }
+    .history-entry { background: var(--pill-bg); border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+    .history-entry-top { display: flex; align-items: center; justify-content: space-between; }
+    .history-entry-date { display: flex; flex-direction: column; gap: 1px; }
+    .history-weekday { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }
+    .history-datestr { font-size: 14px; font-weight: 600; color: var(--text); }
+    .history-entry-right { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+    .history-mins { font-size: 15px; font-weight: 700; color: var(--text); }
+    .history-goal-sub { font-size: 11px; color: var(--text-muted); }
+    .history-bar { height: 4px; background: var(--border); border-radius: 99px; overflow: hidden; }
+    .history-bar-fill { height: 100%; border-radius: 99px; background: var(--primary); transition: width 0.3s ease; }
+    .history-bar-fill.met { background: var(--success); }
+    .history-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 50px; font-size: 11px; font-weight: 600; }
+    .history-badge.met { background: color-mix(in srgb, var(--success) 15%, transparent); color: var(--success); }
+    .history-badge.incomplete { background: var(--pill-bg); color: var(--text-muted); border: 1px solid var(--border); }
 
     /* Collapsible */
     .collapsible-trigger { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 16px 32px; background: none; border: none; cursor: pointer; border-bottom: 1px solid var(--border); font-family: inherit; transition: background 0.15s; }
@@ -2027,13 +2032,31 @@ function renderHistory() {
         container.innerHTML = '<div class="history-empty">No history yet. Your first completed day will appear here automatically.</div>';
         return;
     }
-    const rows = entries.map(([date, rec]) => `
-        <tr>
-          <td>${date}</td>
-          <td>${rec.minutes} / ${rec.goalMins || rec.goal || ','}</td>
-          <td><span class="status-badge ${rec.met ? 'met' : 'incomplete'}">${rec.met ? '✓ Met' : 'Incomplete'}</span></td>
-        </tr>`).join('');
-    container.innerHTML = `<div class="history-table-wrap"><table><thead><tr><th>Date</th><th>Minutes / Goal</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    const cards = entries.map(([date, rec]) => {
+        const [y, m, d] = date.split('-').map(Number);
+        const dt       = new Date(y, m - 1, d);
+        const weekday  = dt.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
+        const dateStr  = dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        const goal     = rec.goalMins || rec.goal || 1;
+        const pct      = Math.min(100, Math.round((rec.minutes / goal) * 100));
+        const metCls   = rec.met ? 'met' : 'incomplete';
+        const badgeTxt = rec.met ? '✓ Goal met' : 'Incomplete';
+        return `
+        <div class="history-entry">
+          <div class="history-entry-top">
+            <div class="history-entry-date">
+              <span class="history-weekday">${weekday}</span>
+              <span class="history-datestr">${dateStr}</span>
+            </div>
+            <div class="history-entry-right">
+              <span class="history-mins">${rec.minutes} min</span>
+              <span class="history-badge ${metCls}">${badgeTxt}</span>
+            </div>
+          </div>
+          <div class="history-bar"><div class="history-bar-fill ${metCls}" style="width:${pct}%"></div></div>
+        </div>`;
+    }).join('');
+    container.innerHTML = `<div class="history-list">${cards}</div>`;
 }
 
 // ── Collapsibles ───────────────────────────────────────────
