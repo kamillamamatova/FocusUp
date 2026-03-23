@@ -408,9 +408,9 @@
           <input type="number" class="goal-input" id="goalInput" value="120" min="1" />
         </div>
         <div class="goal-presets">
-          <button type="button" class="preset-btn" data-mins="30">Weekend</button>
-          <button type="button" class="preset-btn" data-mins="60">Light day</button>
-          <button type="button" class="preset-btn" data-mins="120">Deep work</button>
+          <button type="button" class="preset-btn" id="presetWeekendBtn">Weekend</button>
+          <button type="button" class="preset-btn" id="presetLightDayBtn">Light day</button>
+          <button type="button" class="preset-btn" id="presetDeepWorkBtn">Deep work</button>
         </div>
       </div>
       <div class="status-pills">
@@ -518,6 +518,34 @@
         </div>
         <textarea class="data-textarea" id="dataTextarea" placeholder="Exported JSON will appear here, or paste JSON to import..."></textarea>
         <p class="export-hint">Exports/imports your full timer data as JSON. Use this to back up or manually transfer your data to another browser or device. When Notion is connected, history syncs automatically.</p>
+      </div>
+    </div>
+
+    <!-- Goal Presets -->
+    <div>
+      <button type="button" class="collapsible-trigger" id="presetsToggle">
+        <div class="collapsible-trigger-left">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Goal Presets
+        </div>
+        <svg class="chevron" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="presetsChevron"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="collapsible-body" id="presetsBody">
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px;">Set the minute values for each quick-switch preset button.</p>
+        <div class="pomo-dur-row">
+          <div class="pomo-dur-group">
+            <label class="pomo-dur-label" for="presetWeekendInput">Weekend</label>
+            <input type="number" class="pomo-dur-input" id="presetWeekendInput" min="1" max="1440">
+          </div>
+          <div class="pomo-dur-group">
+            <label class="pomo-dur-label" for="presetLightDayInput">Light day</label>
+            <input type="number" class="pomo-dur-input" id="presetLightDayInput" min="1" max="1440">
+          </div>
+          <div class="pomo-dur-group">
+            <label class="pomo-dur-label" for="presetDeepWorkInput">Deep work</label>
+            <input type="number" class="pomo-dur-input" id="presetDeepWorkInput" min="1" max="1440">
+          </div>
+        </div>
       </div>
     </div>
 
@@ -728,6 +756,9 @@ settings.pomodoroWork       ??= 25;
 settings.pomodoroShortBreak ??= 5;
 settings.pomodoroLongBreak  ??= 15;
 settings.pomodoroLongAfter  ??= 4;
+settings.presetWeekend      ??= 30;
+settings.presetLightDay     ??= 60;
+settings.presetDeepWork     ??= 120;
 
 // ── Theme definitions ──────────────────────────────────────
 const lightThemes = {
@@ -2110,8 +2141,15 @@ const render = () => {
         'Saved (guest)';
 
     document.getElementById('goalInput').value = state.goalMins;
-    document.querySelectorAll('.preset-btn').forEach(btn => {
-        btn.classList.toggle('active', Number(btn.dataset.mins) === state.goalMins);
+    const presetVals = [
+        ['presetWeekendBtn',  settings.presetWeekend,  'Weekend'],
+        ['presetLightDayBtn', settings.presetLightDay, 'Light day'],
+        ['presetDeepWorkBtn', settings.presetDeepWork, 'Deep work'],
+    ];
+    presetVals.forEach(([id, mins, label]) => {
+        const btn = document.getElementById(id);
+        btn.textContent = `${label} (${mins}m)`;
+        btn.classList.toggle('active', mins === state.goalMins);
     });
 
     document.getElementById('currentStreak').textContent = currentStreak() + ' days';
@@ -2166,6 +2204,7 @@ function setupCollapsible(triggerId, bodyId, chevronId) {
 setupCollapsible('dataToggle',     'dataBody',     'dataChevron');
 setupCollapsible('settingsToggle', 'settingsBody', 'settingsChevron');
 setupCollapsible('notionToggle',   'notionBody',   'notionChevron');
+setupCollapsible('presetsToggle',  'presetsBody',  'presetsChevron');
 
 // ── Timer mode toggle ──────────────────────────────────────
 const switchTimerMode = mode => {
@@ -2196,9 +2235,14 @@ document.getElementById('goalInput').addEventListener('change', () => {
     pushStateToServer();
 });
 
-document.querySelectorAll('.preset-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-        state.goalMins = Number(btn.dataset.mins);
+const PRESET_MAP = [
+    ['presetWeekendBtn',  () => settings.presetWeekend],
+    ['presetLightDayBtn', () => settings.presetLightDay],
+    ['presetDeepWorkBtn', () => settings.presetDeepWork],
+];
+PRESET_MAP.forEach(([id, getMins]) => {
+    document.getElementById(id).addEventListener('click', () => {
+        state.goalMins = getMins();
         saveState();
         render();
         pushStateToServer();
@@ -2251,6 +2295,21 @@ document.getElementById('importBtn').addEventListener('click', () => {
     });
 });
 
+// ── Goal preset settings ────────────────────────────────────
+[
+    ['presetWeekendInput',  v => { settings.presetWeekend  = v; }],
+    ['presetLightDayInput', v => { settings.presetLightDay = v; }],
+    ['presetDeepWorkInput', v => { settings.presetDeepWork = v; }],
+].forEach(([id, setter]) => {
+    document.getElementById(id).addEventListener('change', e => {
+        const v = Math.max(1, parseInt(e.target.value) || 1);
+        e.target.value = v;
+        setter(v);
+        saveSettings(settings);
+        render();
+    });
+});
+
 // ── Init ───────────────────────────────────────────────────
 applyTheme();
 buildPaletteGrid();
@@ -2280,6 +2339,9 @@ scheduleMidnightRollover();
     document.getElementById('pomoDurShort').value     = settings.pomodoroShortBreak || 5;
     document.getElementById('pomoDurLong').value      = settings.pomodoroLongBreak  || 15;
     document.getElementById('pomoDurLongAfter').value = settings.pomodoroLongAfter  || 4;
+    document.getElementById('presetWeekendInput').value  = settings.presetWeekend  || 30;
+    document.getElementById('presetLightDayInput').value = settings.presetLightDay || 60;
+    document.getElementById('presetDeepWorkInput').value = settings.presetDeepWork || 120;
 })();
 
 // ── Handle URL params on return ────────────────────────────
