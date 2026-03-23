@@ -2148,7 +2148,7 @@ const render = () => {
     ];
     presetVals.forEach(([id, mins, label]) => {
         const btn = document.getElementById(id);
-        btn.textContent = `${label} (${mins}m)`;
+        btn.textContent = label;
         btn.classList.toggle('active', mins === state.goalMins);
     });
 
