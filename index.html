@@ -339,10 +339,6 @@
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
             Reset
           </button>
-          <button type="button" class="btn btn-success" id="finishDayBtn">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
-            Finish Day
-          </button>
         </div>
       </div>
 
@@ -368,10 +364,6 @@
           <button type="button" class="btn btn-secondary" id="pomoResetBtn">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
             Reset
-          </button>
-          <button type="button" class="btn btn-success" id="pomoFinishDayBtn">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
-            Finish Day
           </button>
         </div>
       </div>
@@ -419,7 +411,7 @@
           <div class="streak-value" id="bestStreak">0 days</div>
         </div>
       </div>
-      <p class="streak-hint">A day counts if minutes &ge; goal. &ldquo;Finish Day&rdquo; records your total for the day.</p>
+      <p class="streak-hint">A day counts if minutes &ge; goal. Days are recorded automatically at midnight.</p>
     </div>
 
     <!-- History -->
@@ -516,8 +508,8 @@
             <span class="hint-text">Clears today's running total back to zero. Your history log is not affected.</span>
           </div>
           <div class="hint-item">
-            <span class="hint-badge">Finish Day</span>
-            <span class="hint-text">Locks in today's focus time, updates your streak, and resets the timer for tomorrow. Do this at the end of each day. If you connected Notion with a database selected, it also saves a row there automatically.</span>
+            <span class="hint-badge">Day rollover</span>
+            <span class="hint-text">At midnight, FocusUp automatically saves today's focus time, updates your streak, and resets the timer for the new day. If Notion is connected, it syncs the entry too. No action needed.</span>
           </div>
           <div class="hint-item">
             <span class="hint-badge">Goal</span>
@@ -573,7 +565,7 @@
           </div>
           <div class="hint-item">
             <span class="hint-badge">Notion Sync</span>
-            <span class="hint-text">Connects FocusUp to a Notion database. Every Finish Day adds a row with your date, minutes, goal, and whether you hit it, so your focus log lives inside Notion as a real table you can filter and annotate.</span>
+            <span class="hint-text">Connects FocusUp to a Notion database. At midnight rollover, a row is added with your date, minutes, goal, and whether you hit it, so your focus log lives inside Notion as a real table you can filter and annotate.</span>
           </div>
         </div>
 
@@ -1238,7 +1230,7 @@ function renderDbPickerHTML() {
         const backfillNote = historyCount > 0
             ? `<p class="notion-desc" style="margin-top:12px;margin-bottom:6px;">
                 You have <strong>${historyCount}</strong> day${historyCount === 1 ? '' : 's'} logged locally.
-                New days sync automatically when you click <strong>Finish Day</strong>.
+                New days sync automatically at midnight rollover.
                 To push your existing history into this database now, click below.
                </p>
                <button type="button" class="btn btn-secondary" id="backfillBtn" style="padding:7px 16px;font-size:13px;">Sync history to Notion</button>
@@ -1323,7 +1315,7 @@ function renderDbPickerHTML() {
     // Not yet loaded , show optional prompt
     return `<div class="db-picker-section">
         <div class="db-picker-title">Save logs to Notion automatically <span style="font-weight:400;opacity:0.7;">(optional)</span></div>
-        <p class="notion-desc" style="margin-top:8px;">Every time you click <strong>Finish Day</strong>, FocusUp adds a row to a Notion database with your date, minutes focused, goal, and whether you hit it. Pick a database below to enable this.</p>
+        <p class="notion-desc" style="margin-top:8px;">At midnight rollover, FocusUp automatically adds a row to a Notion database with your date, minutes focused, goal, and whether you hit it. Pick a database below to enable this.</p>
         <button type="button" class="btn btn-secondary" id="loadDbsBtn" style="padding:7px 16px;font-size:13px;gap:8px;">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></svg>
           Show my Notion databases
@@ -1559,24 +1551,149 @@ window.addEventListener('storage', e => {
 });
 
 // ── Daily rollover ─────────────────────────────────────────
-const ensureToday = () => {
-    const t = todayKey();
-    if (state.lastOpened !== t) {
-        state.sessions = [];
-        state.lastOpened = t;
-        saveState();
-        if (typeof pomoState !== 'undefined') {
-            pomoState.phase = 'work';
-            pomoState.completedInRound = 0;
-            pomoState.totalToday = 0;
-            pomoState.running = false;
-            pomoState.phaseStartMs = null;
-            pomoState.pausedRemMs = null;
-            savePomoState();
+
+// Returns the local-midnight timestamp (ms) that marks the END of dateKey.
+const endOfDayMs = dateKey => {
+    const [y, m, d] = dateKey.split('-').map(Number);
+    return new Date(y, m - 1, d + 1, 0, 0, 0, 0).getTime();
+};
+
+// Sync one day's entry to Notion if connected.
+const syncToNotion = async (date, mins, goal, met) => {
+    const syncEl = document.getElementById('syncStatus');
+    if (notionStatus !== 'connected' || !notionSelectedDb) {
+        syncEl.style.display = 'none';
+        return;
+    }
+    syncEl.style.display = '';
+    syncEl.textContent   = 'Syncing\u2026';
+    syncEl.className     = 'pill';
+    try {
+        const res  = await fetch(`${BACKEND_URL}/api/sync`, {
+            method:      'POST',
+            credentials: 'include',
+            headers:     { 'Content-Type': 'application/json', ...authHeaders() },
+            body:        JSON.stringify({ date, minutes: mins, goal, met }),
+        });
+        const data = await res.json();
+        if (res.ok) {
+            syncEl.textContent = data.action === 'updated' ? 'Notion updated' : 'Saved to Notion';
+            syncEl.className   = 'pill sync-ok';
+        } else {
+            syncEl.textContent = data.error || 'Could not save to Notion';
+            syncEl.className   = 'pill sync-fail';
         }
+    } catch {
+        syncEl.textContent = 'Could not reach Notion sync';
+        syncEl.className   = 'pill sync-fail';
     }
 };
-ensureToday();
+
+// Finalize a past day: write to history, sync, push to server.
+const finalizeDay = async (dateKey, sessions, capMs) => {
+    let totalSecs = 0;
+    for (const s of sessions) {
+        const start = s.start;
+        const end   = Math.min(s.end ?? capMs, capMs);
+        if (end > start) totalSecs += Math.floor((end - start) / 1000);
+    }
+    const mins = Math.round(totalSecs / 60);
+    if (mins === 0) return; // skip empty days
+    const goal = Math.max(1, Math.floor(state.goalMins));
+    const met  = mins >= goal;
+    state.history[dateKey] = { minutes: mins, goalMins: goal, met };
+    recomputeBestStreak();
+    pushStateToServer();
+    syncToNotion(dateKey, mins, goal, met);
+};
+
+// Reset pomodoro to a clean work-phase state.
+const resetPomoForNewDay = () => {
+    pomoState.phase            = 'work';
+    pomoState.completedInRound = 0;
+    pomoState.totalToday       = 0;
+    pomoState.running          = false;
+    pomoState.phaseStartMs     = null;
+    pomoState.pausedRemMs      = null;
+    savePomoState();
+};
+
+// On-load: finalize the stored day if it differs from today.
+const performRolloverOnLoad = () => {
+    const prevKey = state.lastOpened;
+    const today   = todayKey();
+    if (!prevKey || prevKey === today) return;
+
+    const capMs = endOfDayMs(prevKey);
+    const prevSessions = state.sessions.filter(s => s.start < capMs);
+
+    finalizeDay(prevKey, prevSessions, capMs);
+
+    state.sessions    = [];
+    state.lastOpened  = today;
+    saveState();
+    resetPomoForNewDay();
+};
+
+// Live: split an active session at midnight and roll over.
+const performLiveMidnightRollover = () => {
+    const prevKey   = state.lastOpened;
+    const today     = todayKey();
+    if (prevKey === today) return; // guard against double-fire
+
+    const [y, m, d] = today.split('-').map(Number);
+    const midMs = new Date(y, m - 1, d, 0, 0, 0, 0).getTime();
+
+    // Pause active timers without permanently closing sessions.
+    const wasRegular = ticking;
+    const wasPomo    = (settings.timerMode || 'regular') === 'pomodoro' && pomoState.running;
+    if (wasRegular) { ticking = false; if (tickHandle) { clearInterval(tickHandle); tickHandle = null; } }
+    if (wasPomo)    { pomoState.running = false; }
+
+    // Partition sessions: sessions before midnight go to yesterday, any that
+    // cross midnight are split; the post-midnight tail carries forward.
+    const yesterdaySessions = [];
+    const todaySessions     = [];
+
+    for (const s of state.sessions) {
+        const end = s.end ?? Date.now();
+        if (end <= midMs) {
+            yesterdaySessions.push(s);
+        } else if (s.start >= midMs) {
+            todaySessions.push(s);
+        } else {
+            // crosses midnight
+            yesterdaySessions.push({ start: s.start, end: midMs });
+            todaySessions.push({ start: midMs, end: s.end && s.end > midMs ? s.end : null });
+        }
+    }
+
+    finalizeDay(prevKey, yesterdaySessions, midMs);
+
+    state.sessions   = todaySessions;
+    state.lastOpened = today;
+    saveState();
+
+    pomoState.totalToday = 0;
+    savePomoState();
+
+    // Resume whatever was running.
+    if (wasRegular) { ticking = true; tickHandle = setInterval(render, 1000); }
+    if (wasPomo)    { pomoState.running = true; ensureTick(); }
+
+    render();
+};
+
+// Schedule a callback at the next local midnight, then reschedule.
+const scheduleMidnightRollover = () => {
+    const now      = new Date();
+    const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0);
+    const delay    = tomorrow.getTime() - now.getTime();
+    setTimeout(() => {
+        performLiveMidnightRollover();
+        scheduleMidnightRollover();
+    }, delay);
+};
 
 // ── Timer core ─────────────────────────────────────────────
 let ticking = false;
@@ -1591,7 +1708,6 @@ const calcElapsedSecs = () => {
 };
 
 const startTimer = () => {
-    ensureToday();
     if (ticking) return;
     const open = state.sessions.find(s => s.end == null);
     if (!open) state.sessions.push({ start: Date.now(), end: null });
@@ -1661,7 +1777,6 @@ const ensureTick = () => {
 
 const pomoStart = () => {
     if (pomoState.running) return;
-    ensureToday();
     const remMs = pomoState.pausedRemMs !== null ? pomoState.pausedRemMs : pomoPhaseDurationMs();
     pomoState.phaseStartMs = Date.now() - (pomoPhaseDurationMs() - remMs);
     pomoState.pausedRemMs  = null;
@@ -1768,66 +1883,6 @@ const recomputeBestStreak = () => {
     saveState();
 };
 
-// ── Finish Day ─────────────────────────────────────────────
-const finishDay = () => {
-    const previewMins = Math.round(calcElapsedSecs() / 60);
-    const previewGoal = Math.max(1, Math.floor(state.goalMins));
-    const previewMet  = previewMins >= previewGoal;
-    showConfirm(
-        'Finish today?',
-        `Log ${previewMins} min toward your ${previewGoal} min goal${previewMet ? ', goal met!' : '.'}`,
-        async () => {
-    if ((settings.timerMode || 'regular') === 'pomodoro' && pomoState.running) pomoPause();
-    if (ticking) pauseTimer();
-    const date = todayKey();
-    const mins = Math.round(calcElapsedSecs() / 60);
-    const goal = Math.max(1, Math.floor(state.goalMins));
-    const met  = mins >= goal;
-
-    // ── Local save , always first, unconditionally ──────────
-    state.history[date] = { minutes: mins, goalMins: goal, met };
-    state.sessions = [];
-    saveState();
-    recomputeBestStreak();
-    render();
-
-    // Push durable state to server so other devices see the new history entry.
-    pushStateToServer();
-
-    // ── Notion sync , fire only when fully configured ───────
-    const syncEl = document.getElementById('syncStatus');
-    if (notionStatus !== 'connected' || !notionSelectedDb) {
-        syncEl.style.display = 'none';
-        return;
-    }
-
-    syncEl.style.display = '';
-    syncEl.textContent   = 'Syncing\u2026';
-    syncEl.className     = 'pill';
-
-    try {
-        const res  = await fetch(`${BACKEND_URL}/api/sync`, {
-            method:      'POST',
-            credentials: 'include',
-            headers:     { 'Content-Type': 'application/json', ...authHeaders() },
-            body:        JSON.stringify({ date, minutes: mins, goal, met }),
-        });
-        const data = await res.json();
-
-        if (res.ok) {
-            syncEl.textContent = data.action === 'updated' ? 'Notion updated' : 'Saved to Notion';
-            syncEl.className   = 'pill sync-ok';
-        } else {
-            syncEl.textContent = data.error || 'Could not save to Notion';
-            syncEl.className   = 'pill sync-fail';
-        }
-    } catch {
-        syncEl.textContent = 'Could not reach Notion sync';
-        syncEl.className   = 'pill sync-fail';
-    }
-        } // end confirm callback
-    ); // end showConfirm
-};
 
 // ── Render ─────────────────────────────────────────────────
 const render = () => {
@@ -1933,7 +1988,7 @@ function renderHistory() {
     const container = document.getElementById('historyContainer');
     const entries = Object.entries(state.history).sort((a, b) => b[0].localeCompare(a[0])).slice(0, 30);
     if (entries.length === 0) {
-        container.innerHTML = '<div class="history-empty">No history yet. Finish your first day to start tracking!</div>';
+        container.innerHTML = '<div class="history-empty">No history yet. Your first completed day will appear here automatically.</div>';
         return;
     }
     const rows = entries.map(([date, rec]) => `
@@ -1978,12 +2033,10 @@ document.getElementById('modePomodoroBtn').addEventListener('click', () => switc
 document.getElementById('pomoStartPauseBtn').addEventListener('click', () => { pomoState.running ? pomoPause() : pomoStart(); });
 document.getElementById('pomoSkipBtn').addEventListener('click', pomoSkip);
 document.getElementById('pomoResetBtn').addEventListener('click', pomoReset);
-document.getElementById('pomoFinishDayBtn').addEventListener('click', finishDay);
 
 // ── Event wiring ───────────────────────────────────────────
 document.getElementById('startPauseBtn').addEventListener('click', () => { ticking ? pauseTimer() : startTimer(); });
 document.getElementById('resetBtn').addEventListener('click', resetToday);
-document.getElementById('finishDayBtn').addEventListener('click', finishDay);
 document.getElementById('goalInput').addEventListener('change', () => {
     state.goalMins = Math.max(1, Math.floor(Number(document.getElementById('goalInput').value) || 1));
     saveState();
@@ -2046,8 +2099,10 @@ if ((settings.themeMode || 'light') === 'dark') {
     document.getElementById('lightModeBtn').classList.remove('active');
 }
 
+performRolloverOnLoad();
 recomputeBestStreak();
 render();
+scheduleMidnightRollover();
 
 // Apply saved timer mode on load
 (function () {
