@@ -248,7 +248,7 @@
     .settings-btn:hover { background: rgba(255,255,255,0.4); }
 
     /* History panel */
-    .history-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: none; align-items: flex-start; justify-content: flex-end; z-index: 1000; padding: 16px; }
+    .history-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.35); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 16px; backdrop-filter: blur(4px); }
     .history-overlay.open { display: flex; }
     .history-panel { background: var(--card); border: 1px solid var(--border); border-radius: 20px; width: 100%; max-width: 460px; max-height: calc(100vh - 32px); overflow-y: auto; box-shadow: 0 16px 48px rgba(0,0,0,0.15); position: relative; }
     .history-panel-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px 16px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--card); border-radius: 20px 20px 0 0; z-index: 1; }
@@ -258,7 +258,7 @@
     .history-panel .streak-hint { margin-top: 12px; margin-bottom: 0; }
 
     /* Settings panel */
-    .settings-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: none; align-items: flex-start; justify-content: flex-end; z-index: 1000; padding: 16px; }
+    .settings-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.35); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 16px; backdrop-filter: blur(4px); }
     .settings-overlay.open { display: flex; }
     .settings-panel { background: var(--card); border: 1px solid var(--border); border-radius: 20px; width: 100%; max-width: 460px; max-height: calc(100vh - 32px); overflow-y: auto; box-shadow: 0 16px 48px rgba(0,0,0,0.15); position: relative; }
     .settings-panel-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px 16px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--card); border-radius: 20px 20px 0 0; z-index: 1; }
