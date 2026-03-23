@@ -1966,26 +1966,30 @@ const pomoReset = () => {
 };
 
 // ── Streaks ────────────────────────────────────────────────
+
+// Step back one LOCAL calendar day from a YYYY-MM-DD key.
+const prevDayKey = key => {
+    const [y, m, d] = key.split('-').map(Number);
+    const dt = new Date(y, m - 1, d);
+    dt.setDate(dt.getDate() - 1);
+    return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+};
+
 const currentStreak = () => {
     const today    = todayKey();
     const goalSecs = Math.max(60, Math.floor(state.goalMins) * 60);
 
-    // Determine if today counts: use history entry if finalized, otherwise live elapsed
+    // Today counts if its goal is met, either live or via a finalized history entry.
     const todayRec = state.history[today];
     const todayMet = todayRec ? todayRec.met : calcElapsedSecs() >= goalSecs;
 
-    // Always build the streak from yesterday backwards first, then add today if met.
-    // This means an unmet today never wipes out yesterday's streak mid-day.
-    const keyFromIdx = i => {
-        const d = new Date(i * 86400000);
-        return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
-    };
-
+    // Count consecutive met days going backwards from yesterday.
+    // An unfinished today never resets the streak mid-day.
     let count = 0;
-    let idx = dayIndex(today) - 1; // start at yesterday
+    let key = prevDayKey(today);
     while (true) {
-        const rec = state.history[keyFromIdx(idx)];
-        if (rec && rec.met) { count++; idx--; } else break;
+        const rec = state.history[key];
+        if (rec && rec.met) { count++; key = prevDayKey(key); } else break;
     }
 
     if (todayMet) count++;
