@@ -1590,6 +1590,59 @@ window.addEventListener('storage', e => {
     if (e.key === STORE_KEY && e.newValue) { try { state = JSON.parse(e.newValue); render(); } catch {} }
 });
 
+// ── Confetti ───────────────────────────────────────────────
+const launchConfetti = () => {
+    const canvas = document.createElement('canvas');
+    canvas.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:9999;';
+    document.body.appendChild(canvas);
+    const ctx = canvas.getContext('2d');
+    canvas.width  = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const colors = ['#f43f5e','#f97316','#facc15','#4ade80','#60a5fa','#a78bfa','#fb7185','#34d399'];
+    const particles = Array.from({ length: 140 }, () => ({
+        x:        Math.random() * canvas.width,
+        y:        -20 - Math.random() * canvas.height * 0.4,
+        w:        6 + Math.random() * 8,
+        h:        3 + Math.random() * 5,
+        color:    colors[Math.floor(Math.random() * colors.length)],
+        rotation: Math.random() * Math.PI * 2,
+        rotSpeed: (Math.random() - 0.5) * 0.14,
+        vx:       (Math.random() - 0.5) * 2.5,
+        vy:       2.5 + Math.random() * 3.5,
+        opacity:  1,
+    }));
+
+    const start = performance.now();
+    const duration = 3800;
+    let frame;
+
+    const animate = now => {
+        const elapsed = now - start;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        let alive = false;
+        for (const p of particles) {
+            p.x += p.vx;
+            p.y += p.vy;
+            p.rotation += p.rotSpeed;
+            if (elapsed > duration * 0.55) p.opacity = Math.max(0, p.opacity - 0.018);
+            if (p.y < canvas.height + 20 && p.opacity > 0) {
+                alive = true;
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate(p.rotation);
+                ctx.globalAlpha = p.opacity;
+                ctx.fillStyle   = p.color;
+                ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+                ctx.restore();
+            }
+        }
+        if (alive) { frame = requestAnimationFrame(animate); }
+        else        { canvas.remove(); }
+    };
+    frame = requestAnimationFrame(animate);
+};
+
 // ── Daily rollover ─────────────────────────────────────────
 
 // Returns the local-midnight timestamp (ms) that marks the END of dateKey.
@@ -1669,8 +1722,9 @@ const performRolloverOnLoad = () => {
 
     finalizeDay(prevKey, prevSessions, capMs);
 
-    state.sessions    = [];
-    state.lastOpened  = today;
+    state.sessions         = [];
+    state.lastOpened       = today;
+    _streakConfettiFired   = false;
     saveState();
     resetPomoForNewDay();
 };
@@ -1710,8 +1764,9 @@ const performLiveMidnightRollover = () => {
 
     finalizeDay(prevKey, yesterdaySessions, midMs);
 
-    state.sessions   = todaySessions;
-    state.lastOpened = today;
+    state.sessions       = todaySessions;
+    state.lastOpened     = today;
+    _streakConfettiFired = false;
     saveState();
 
     pomoState.totalToday = 0;
@@ -1738,6 +1793,7 @@ const scheduleMidnightRollover = () => {
 // ── Timer core ─────────────────────────────────────────────
 let ticking = false;
 let tickHandle = null;
+let _streakConfettiFired = false;
 
 const calcElapsedSecs = () => {
     let total = 0;
@@ -1901,8 +1957,21 @@ const pomoReset = () => {
 const currentStreak = () => {
     let count = 0;
     let idx = dayIndex(todayKey());
-    // If today hasn't been logged yet, start counting from yesterday.
-    if (!state.history[todayKey()]) idx--;
+    const today = todayKey();
+    const todayRec = state.history[today];
+
+    if (todayRec) {
+        // Today already finalized (edge case): if not met, streak is broken
+        if (!todayRec.met) return 0;
+        count++;
+        idx--;
+    } else {
+        // Today not yet logged: count it if live elapsed meets the goal
+        const goalSecs = Math.max(60, Math.floor(state.goalMins) * 60);
+        if (calcElapsedSecs() >= goalSecs) count++;
+        idx--; // always look at yesterday next
+    }
+
     while (true) {
         const d = new Date(idx * 86400000);
         const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
@@ -1940,6 +2009,13 @@ const render = () => {
     const elapsed   = calcElapsedSecs();
     const remaining = Math.max(0, goalSecs - elapsed);
     const overtime  = Math.max(0, elapsed - goalSecs);
+
+    // Fire confetti the first time the goal is reached today if streak hits a 7-day multiple
+    if (!_streakConfettiFired && elapsed >= goalSecs) {
+        _streakConfettiFired = true;
+        const streak = currentStreak();
+        if (streak > 0 && streak % 7 === 0) launchConfetti();
+    }
 
     if (mode === 'regular') {
         document.getElementById('elapsedDisplay').textContent   = fmt(elapsed);
@@ -2159,6 +2235,8 @@ if ((settings.themeMode || 'light') === 'dark') {
 
 performRolloverOnLoad();
 recomputeBestStreak();
+// Don't re-fire confetti if the goal was already met before this page load
+_streakConfettiFired = calcElapsedSecs() >= Math.max(60, Math.floor(state.goalMins) * 60);
 render();
 scheduleMidnightRollover();
 
