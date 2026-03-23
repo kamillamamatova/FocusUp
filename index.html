@@ -2017,8 +2017,6 @@ setupCollapsible('notionToggle',   'notionBody',   'notionChevron');
 // ── Timer mode toggle ──────────────────────────────────────
 const switchTimerMode = mode => {
     if ((settings.timerMode || 'regular') === mode) return;
-    if (settings.timerMode === 'regular' && ticking) pauseTimer();
-    if (settings.timerMode === 'pomodoro' && pomoState.running) pomoPause();
     settings.timerMode = mode;
     saveSettings(settings);
     document.getElementById('regularView').style.display   = mode === 'regular'  ? '' : 'none';
