@@ -250,11 +250,13 @@ function migrateGuestToNotion(guestId, workspaceId) {
     }
 
     // Merge: workspace wins for entries that exist in both; guest fills in the rest.
-    const mergedHistory = { ...guestState.history, ...wsState.history };
+    const mergedHistory    = { ...guestState.history,    ...wsState.history    };
+    const mergedSessionLog = { ...(guestState.sessionLog || {}), ...(wsState.sessionLog || {}) };
     const merged = {
         goalMins:   wsState.goalMins || guestState.goalMins || 120,
         history:    mergedHistory,
         bestStreak: Math.max(wsState.bestStreak || 0, guestState.bestStreak || 0),
+        sessionLog: mergedSessionLog,
     };
 
     saveUserState(workspaceId, 'notion', JSON.stringify(merged));
@@ -306,11 +308,13 @@ function migrateGuestToApp(guestId, userId) {
         try { appState = JSON.parse(appRow.state_json); } catch { /* keep defaults */ }
     }
 
-    const mergedHistory = { ...guestState.history, ...appState.history };
+    const mergedHistory    = { ...guestState.history,    ...appState.history    };
+    const mergedSessionLog = { ...(guestState.sessionLog || {}), ...(appState.sessionLog || {}) };
     const merged = {
         goalMins:   appState.goalMins || guestState.goalMins || 120,
         history:    mergedHistory,
         bestStreak: Math.max(appState.bestStreak || 0, guestState.bestStreak || 0),
+        sessionLog: mergedSessionLog,
     };
 
     saveUserState(userId, 'app', JSON.stringify(merged));

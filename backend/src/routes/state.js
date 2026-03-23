@@ -30,6 +30,30 @@ router.get('/', identifyUser, (req, res) => {
     }
 });
 
+function sanitizeSessionLog(raw) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+    const out = {};
+    for (const [date, entries] of Object.entries(raw)) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
+        if (!Array.isArray(entries)) continue;
+        const clean = entries.filter(e =>
+            e && typeof e === 'object' &&
+            typeof e.label === 'string' &&
+            typeof e.start === 'number' &&
+            typeof e.end   === 'number' &&
+            typeof e.mins  === 'number'
+        ).map(e => ({
+            id:    typeof e.id === 'string' ? e.id.slice(0, 40) : String(e.start),
+            label: e.label.slice(0, 120),
+            start: e.start,
+            end:   e.end,
+            mins:  Math.max(0, Math.round(e.mins)),
+        }));
+        if (clean.length > 0) out[date] = clean;
+    }
+    return out;
+}
+
 // ── POST /api/state ───────────────────────────────────────
 router.post('/', identifyUser, (req, res) => {
     const { state } = req.body || {};
@@ -42,6 +66,7 @@ router.post('/', identifyUser, (req, res) => {
         goalMins:   typeof state.goalMins   === 'number'  && state.goalMins >= 1 ? state.goalMins   : 120,
         history:    typeof state.history    === 'object'  && !Array.isArray(state.history) && state.history ? state.history : {},
         bestStreak: typeof state.bestStreak === 'number'                          ? state.bestStreak : 0,
+        sessionLog: sanitizeSessionLog(state.sessionLog),
     };
 
     try {
