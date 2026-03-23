@@ -197,6 +197,17 @@
     .history-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 50px; font-size: 11px; font-weight: 600; }
     .history-badge.met { background: color-mix(in srgb, var(--success) 15%, transparent); color: var(--success); }
     .history-badge.incomplete { background: var(--pill-bg); color: var(--text-muted); border: 1px solid var(--border); }
+    .history-entry { cursor: pointer; }
+    .history-entry:hover { background: var(--table-hover); }
+    .history-chevron { color: var(--text-muted); transition: transform 0.2s; flex-shrink: 0; margin-left: 4px; }
+    .history-chevron.open { transform: rotate(180deg); }
+    .history-detail { display: none; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+    .history-detail.open { display: block; }
+    .history-session-list { display: flex; flex-direction: column; gap: 5px; }
+    .history-session-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; background: var(--table-bg); border-radius: 8px; }
+    .history-session-label { font-size: 13px; color: var(--text); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .history-session-mins { font-size: 12px; color: var(--text-muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .history-session-empty { font-size: 12px; color: var(--accent); display: block; }
 
     /* Collapsible */
     .collapsible-trigger { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 16px 32px; background: none; border: none; cursor: pointer; border-bottom: 1px solid var(--border); font-family: inherit; transition: background 0.15s; }
@@ -2224,7 +2235,13 @@ const render = () => {
     renderSessionLog();
 };
 
+const _expandedHistoryDates = new Set();
+
 function renderHistory() {
+    // Skip rebuild while panel is closed to avoid scroll reset during ticking.
+    const overlay = document.getElementById('historyOverlay');
+    if (overlay && !overlay.classList.contains('open')) return;
+
     const container = document.getElementById('historyContainer');
     const entries = Object.entries(state.history).sort((a, b) => b[0].localeCompare(a[0])).slice(0, 30);
     if (entries.length === 0) {
@@ -2240,8 +2257,28 @@ function renderHistory() {
         const pct      = Math.min(100, Math.round((rec.minutes / goal) * 100));
         const metCls   = rec.met ? 'met' : 'incomplete';
         const badgeTxt = rec.met ? '✓ Goal met' : 'Incomplete';
+        const expanded = _expandedHistoryDates.has(date);
+
+        const logEntries = state.sessionLog[date] || [];
+        let detailHtml;
+        if (logEntries.length > 0) {
+            const rows = logEntries.map(e => {
+                const h   = Math.floor(e.mins / 60);
+                const m2  = e.mins % 60;
+                const dur = h > 0 ? `${h}h ${m2}m` : `${m2}m`;
+                const safe = e.label.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+                return `<div class="history-session-row">
+                  <span class="history-session-label" title="${safe}">${safe}</span>
+                  <span class="history-session-mins">${dur}</span>
+                </div>`;
+            }).join('');
+            detailHtml = `<div class="history-session-list">${rows}</div>`;
+        } else {
+            detailHtml = '<span class="history-session-empty">No labeled sessions recorded for this day.</span>';
+        }
+
         return `
-        <div class="history-entry">
+        <div class="history-entry" data-date="${date}">
           <div class="history-entry-top">
             <div class="history-entry-date">
               <span class="history-weekday">${weekday}</span>
@@ -2250,12 +2287,26 @@ function renderHistory() {
             <div class="history-entry-right">
               <span class="history-mins">${rec.minutes} min</span>
               <span class="history-badge ${metCls}">${badgeTxt}</span>
+              <svg class="history-chevron${expanded ? ' open' : ''}" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
             </div>
           </div>
           <div class="history-bar"><div class="history-bar-fill ${metCls}" style="width:${pct}%"></div></div>
+          <div class="history-detail${expanded ? ' open' : ''}">${detailHtml}</div>
         </div>`;
     }).join('');
     container.innerHTML = `<div class="history-list">${cards}</div>`;
+
+    container.querySelectorAll('.history-entry').forEach(el => {
+        el.addEventListener('click', () => {
+            const date = el.dataset.date;
+            if (_expandedHistoryDates.has(date)) {
+                _expandedHistoryDates.delete(date);
+            } else {
+                _expandedHistoryDates.add(date);
+            }
+            renderHistory();
+        });
+    });
 }
 
 function renderSessionLog() {
