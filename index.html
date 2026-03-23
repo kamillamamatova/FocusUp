@@ -1967,29 +1967,28 @@ const pomoReset = () => {
 
 // ── Streaks ────────────────────────────────────────────────
 const currentStreak = () => {
-    let count = 0;
-    let idx = dayIndex(todayKey());
-    const today = todayKey();
+    const today    = todayKey();
+    const goalSecs = Math.max(60, Math.floor(state.goalMins) * 60);
+
+    // Determine if today counts: use history entry if finalized, otherwise live elapsed
     const todayRec = state.history[today];
+    const todayMet = todayRec ? todayRec.met : calcElapsedSecs() >= goalSecs;
 
-    if (todayRec) {
-        // Today already finalized (edge case): if not met, streak is broken
-        if (!todayRec.met) return 0;
-        count++;
-        idx--;
-    } else {
-        // Today not yet logged: count it if live elapsed meets the goal
-        const goalSecs = Math.max(60, Math.floor(state.goalMins) * 60);
-        if (calcElapsedSecs() >= goalSecs) count++;
-        idx--; // always look at yesterday next
-    }
+    // Always build the streak from yesterday backwards first, then add today if met.
+    // This means an unmet today never wipes out yesterday's streak mid-day.
+    const keyFromIdx = i => {
+        const d = new Date(i * 86400000);
+        return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
+    };
 
+    let count = 0;
+    let idx = dayIndex(today) - 1; // start at yesterday
     while (true) {
-        const d = new Date(idx * 86400000);
-        const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
-        const rec = state.history[key];
+        const rec = state.history[keyFromIdx(idx)];
         if (rec && rec.met) { count++; idx--; } else break;
     }
+
+    if (todayMet) count++;
     return count;
 };
 
