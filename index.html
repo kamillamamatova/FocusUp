@@ -151,8 +151,13 @@
     .btn-success:hover { filter: brightness(1.1); }
 
     /* Goal row */
-    .goal-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 20px 32px; border-bottom: 1px solid var(--border); }
+    .goal-row { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 20px 32px; border-bottom: 1px solid var(--border); }
     .goal-label { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--text-muted); }
+    .goal-left { display: flex; flex-direction: column; gap: 8px; }
+    .goal-presets { display: flex; gap: 6px; flex-wrap: wrap; }
+    .preset-btn { padding: 4px 12px; border-radius: 50px; border: 1px solid var(--border); background: var(--pill-bg); color: var(--text-muted); font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+    .preset-btn:hover { border-color: var(--primary); color: var(--primary); }
+    .preset-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
     .goal-input { width: 72px; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text); font-family: inherit; font-size: 14px; outline: none; transition: box-shadow 0.2s; }
     .goal-input:focus { box-shadow: 0 0 0 2px var(--primary); }
     .status-pills { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -397,9 +402,16 @@
 
     <!-- Goal Row -->
     <div class="goal-row">
-      <div class="goal-label">
-        Goal (mins)
-        <input type="number" class="goal-input" id="goalInput" value="120" min="1" />
+      <div class="goal-left">
+        <div class="goal-label">
+          Goal (mins)
+          <input type="number" class="goal-input" id="goalInput" value="120" min="1" />
+        </div>
+        <div class="goal-presets">
+          <button type="button" class="preset-btn" data-mins="30">Weekend</button>
+          <button type="button" class="preset-btn" data-mins="60">Light day</button>
+          <button type="button" class="preset-btn" data-mins="120">Deep work</button>
+        </div>
       </div>
       <div class="status-pills">
         <span class="pill">
@@ -2095,6 +2107,9 @@ const render = () => {
         'Saved (guest)';
 
     document.getElementById('goalInput').value = state.goalMins;
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+        btn.classList.toggle('active', Number(btn.dataset.mins) === state.goalMins);
+    });
 
     document.getElementById('currentStreak').textContent = currentStreak() + ' days';
     document.getElementById('bestStreak').textContent    = (state.bestStreak || 0) + ' days';
@@ -2176,6 +2191,15 @@ document.getElementById('goalInput').addEventListener('change', () => {
     saveState();
     render();
     pushStateToServer();
+});
+
+document.querySelectorAll('.preset-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        state.goalMins = Number(btn.dataset.mins);
+        saveState();
+        render();
+        pushStateToServer();
+    });
 });
 
 // ── Export / Import ────────────────────────────────────────
