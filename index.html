@@ -1232,8 +1232,8 @@ document.getElementById('authOverlay').addEventListener('click', e => {
 });
 
 function openHistoryPanel() {
-    renderHistory();
     document.getElementById('historyOverlay').classList.add('open');
+    renderHistory();
 }
 function closeHistoryPanel() {
     document.getElementById('historyOverlay').classList.remove('open');
