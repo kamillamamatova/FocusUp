@@ -2228,7 +2228,12 @@ const render = () => {
         btn.classList.toggle('active', mins === state.goalMins);
     });
 
-    document.getElementById('currentStreak').textContent = currentStreak() + ' days';
+    const cs = currentStreak();
+    if (cs > (state.bestStreak || 0)) {
+        state.bestStreak = cs;
+        saveState();
+    }
+    document.getElementById('currentStreak').textContent = cs + ' days';
     document.getElementById('bestStreak').textContent    = (state.bestStreak || 0) + ' days';
 
     renderHistory();
