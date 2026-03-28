@@ -2390,7 +2390,12 @@ function renderStreakGraph() {
     let monthHtml = '<div class="sg-months">';
     weeks.forEach((week, i) => {
         const mo = week[0].date.getMonth();
-        const showLabel = i === 0 || mo !== weeks[i - 1][0].date.getMonth();
+        const nextMo = i < weeks.length - 1 ? weeks[i + 1][0].date.getMonth() : -1;
+        // At i=0, only show the label if the next week is the same month (avoids overlap when
+        // the graph starts mid-month and the next month label immediately follows).
+        const showLabel = i === 0
+            ? (mo === nextMo)
+            : mo !== weeks[i - 1][0].date.getMonth();
         monthHtml += `<div class="sg-month-col">${showLabel ? MONTHS[mo] : ''}</div>`;
     });
     monthHtml += '</div>';
