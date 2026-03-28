@@ -180,6 +180,23 @@
     .streak-card.best .streak-value { color: var(--success); }
     .streak-hint { font-size: 12px; color: var(--accent); }
 
+    /* Streak contribution graph */
+    .streak-graph-wrap { margin-top: 14px; overflow-x: auto; padding-bottom: 2px; }
+    .streak-graph { display: flex; gap: 3px; }
+    .sg-week { display: flex; flex-direction: column; gap: 3px; }
+    .sg-cell { width: 11px; height: 11px; border-radius: 2px; cursor: default; flex-shrink: 0; transition: opacity 0.1s; }
+    .sg-cell:not([data-tip=""]):hover { opacity: 0.75; cursor: pointer; }
+    .sg-cell[data-level="0"] { background: var(--bg2); outline: 1px solid var(--border); outline-offset: -1px; }
+    .sg-cell[data-level="1"] { background: color-mix(in srgb, var(--primary) 28%, transparent); }
+    .sg-cell[data-level="2"] { background: color-mix(in srgb, var(--primary) 52%, transparent); }
+    .sg-cell[data-level="3"] { background: color-mix(in srgb, var(--primary) 76%, transparent); }
+    .sg-cell[data-level="4"] { background: var(--primary); }
+    .sg-cell[data-level="-1"] { visibility: hidden; }
+    .sg-future { opacity: 0.25; cursor: default !important; }
+    .sg-legend { display: flex; align-items: center; gap: 5px; margin-top: 8px; font-size: 11px; color: var(--text-muted); }
+    .sg-legend-cells { display: flex; gap: 3px; }
+    .sg-tooltip { position: fixed; background: var(--text); color: var(--bg); font-size: 11px; padding: 5px 9px; border-radius: 7px; pointer-events: none; white-space: nowrap; z-index: 9999; opacity: 0; transition: opacity 0.12s; }
+
     /* History */
     .history-empty { text-align: center; padding: 40px 16px; font-size: 13px; color: var(--accent); }
     .history-list { display: flex; flex-direction: column; gap: 8px; }
@@ -475,7 +492,21 @@
           <div class="streak-value" id="bestStreak">0 days</div>
         </div>
       </div>
-      <p class="streak-hint">A day counts if minutes &ge; goal. Days are recorded automatically at midnight.</p>
+      <div class="streak-graph-wrap">
+        <div id="streakGraph"></div>
+        <div class="sg-legend">
+          Less
+          <div class="sg-legend-cells">
+            <div class="sg-cell" data-level="0"></div>
+            <div class="sg-cell" data-level="1"></div>
+            <div class="sg-cell" data-level="2"></div>
+            <div class="sg-cell" data-level="3"></div>
+            <div class="sg-cell" data-level="4"></div>
+          </div>
+          More
+        </div>
+      </div>
+      <p class="streak-hint" style="margin-top:10px;">A day counts if minutes &ge; goal. Days are recorded automatically at midnight.</p>
     </div>
 
     <!-- Today's Focus -->
@@ -2237,6 +2268,7 @@ const render = () => {
     document.getElementById('bestStreak').textContent    = (state.bestStreak || 0) + ' days';
 
     renderHistory();
+    renderStreakGraph();
     renderSessionLog();
 };
 
@@ -2310,6 +2342,81 @@ function renderHistory() {
                 _expandedHistoryDates.add(date);
             }
             renderHistory();
+        });
+    });
+}
+
+function renderStreakGraph() {
+    const container = document.getElementById('streakGraph');
+    if (!container) return;
+
+    const WEEKS = 18;
+    const goal  = Math.max(1, Math.floor(state.goalMins || 30));
+
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+
+    // End on today; align start to previous Sunday so columns are full weeks
+    const endDate   = new Date(now);
+    const startDate = new Date(endDate);
+    startDate.setDate(startDate.getDate() - (WEEKS * 7 - 1));
+    startDate.setDate(startDate.getDate() - startDate.getDay()); // rewind to Sunday
+
+    const weeks = [];
+    const cur   = new Date(startDate);
+    while (cur <= endDate) {
+        const week = [];
+        for (let d = 0; d < 7; d++) {
+            const dateKey = `${cur.getFullYear()}-${String(cur.getMonth()+1).padStart(2,'0')}-${String(cur.getDate()).padStart(2,'0')}`;
+            const isFuture = cur > endDate;
+            const rec      = state.history[dateKey];
+            const mins     = rec ? (rec.minutes || 0) : 0;
+            let level = 0;
+            if (!isFuture && mins > 0) {
+                if      (rec && rec.met)      level = 4;
+                else if (mins >= goal * 0.75) level = 3;
+                else if (mins >= goal * 0.5)  level = 2;
+                else                          level = 1;
+            }
+            week.push({ dateKey, date: new Date(cur), mins, level, isFuture });
+            cur.setDate(cur.getDate() + 1);
+        }
+        weeks.push(week);
+    }
+
+    const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    let html = '<div class="streak-graph">';
+    weeks.forEach(week => {
+        html += '<div class="sg-week">';
+        week.forEach(day => {
+            if (day.isFuture) {
+                html += `<div class="sg-cell sg-future" data-level="0" data-tip=""></div>`;
+            } else {
+                const dateLabel = day.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                const tip = day.mins > 0 ? `${day.mins} min \u2014 ${dateLabel}` : `No activity \u2014 ${dateLabel}`;
+                html += `<div class="sg-cell" data-level="${day.level}" data-tip="${tip.replace(/"/g,'&quot;')}"></div>`;
+            }
+        });
+        html += '</div>';
+    });
+    html += '</div>';
+    container.innerHTML = html;
+
+    // Tooltip
+    const tooltip = document.getElementById('sgTooltip');
+    container.querySelectorAll('.sg-cell[data-tip]').forEach(cell => {
+        const tip = cell.dataset.tip;
+        if (!tip) return;
+        cell.addEventListener('mouseenter', () => {
+            tooltip.textContent = tip;
+            tooltip.style.opacity = '1';
+        });
+        cell.addEventListener('mousemove', e => {
+            tooltip.style.left = (e.clientX + 12) + 'px';
+            tooltip.style.top  = (e.clientY - 32) + 'px';
+        });
+        cell.addEventListener('mouseleave', () => {
+            tooltip.style.opacity = '0';
         });
     });
 }
@@ -2538,5 +2645,6 @@ pullAndMergeState();
 // Also re-pulls state under the Notion identity if connected (after guest migration).
 checkNotionStatus();
 </script>
+<div class="sg-tooltip" id="sgTooltip"></div>
 </body>
 </html>
