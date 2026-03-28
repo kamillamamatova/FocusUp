@@ -193,6 +193,8 @@
     .sg-cell[data-level="4"] { background: var(--primary); }
     .sg-cell[data-level="-1"] { visibility: hidden; }
     .sg-future { opacity: 0.25; cursor: default !important; }
+    .sg-months { display: flex; gap: 3px; margin-bottom: 4px; }
+    .sg-month-col { width: 11px; flex-shrink: 0; font-size: 10px; color: var(--text-muted); overflow: visible; white-space: nowrap; }
     .sg-legend { display: flex; align-items: center; gap: 5px; margin-top: 8px; font-size: 11px; color: var(--text-muted); }
     .sg-legend-cells { display: flex; gap: 3px; }
     .sg-tooltip { position: fixed; background: var(--text); color: var(--bg); font-size: 11px; padding: 5px 9px; border-radius: 7px; pointer-events: none; white-space: nowrap; z-index: 9999; opacity: 0; transition: opacity 0.12s; }
@@ -2350,30 +2352,30 @@ function renderStreakGraph() {
     const container = document.getElementById('streakGraph');
     if (!container) return;
 
-    const WEEKS = 18;
-    const goal  = Math.max(1, Math.floor(state.goalMins || 30));
+    const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const goal   = Math.max(1, Math.floor(state.goalMins || 30));
 
     const now = new Date();
     now.setHours(0, 0, 0, 0);
 
-    // End on today; align start to previous Sunday so columns are full weeks
+    // End on today; rewind to the Sunday of that week, then go back 52 full weeks
     const endDate   = new Date(now);
     const startDate = new Date(endDate);
-    startDate.setDate(startDate.getDate() - (WEEKS * 7 - 1));
     startDate.setDate(startDate.getDate() - startDate.getDay()); // rewind to Sunday
+    startDate.setDate(startDate.getDate() - 51 * 7);             // 52 weeks total
 
     const weeks = [];
     const cur   = new Date(startDate);
     while (cur <= endDate) {
         const week = [];
         for (let d = 0; d < 7; d++) {
-            const dateKey = `${cur.getFullYear()}-${String(cur.getMonth()+1).padStart(2,'0')}-${String(cur.getDate()).padStart(2,'0')}`;
             const isFuture = cur > endDate;
-            const rec      = state.history[dateKey];
-            const mins     = rec ? (rec.minutes || 0) : 0;
+            const dateKey  = `${cur.getFullYear()}-${String(cur.getMonth()+1).padStart(2,'0')}-${String(cur.getDate()).padStart(2,'0')}`;
+            const rec  = state.history[dateKey];
+            const mins = rec ? (rec.minutes || 0) : 0;
             let level = 0;
             if (!isFuture && mins > 0) {
-                if      (rec && rec.met)      level = 4;
+                if      (rec.met)             level = 4;
                 else if (mins >= goal * 0.75) level = 3;
                 else if (mins >= goal * 0.5)  level = 2;
                 else                          level = 1;
@@ -2384,23 +2386,33 @@ function renderStreakGraph() {
         weeks.push(week);
     }
 
-    const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    let html = '<div class="streak-graph">';
+    // Month labels: show name at the first week where a new month begins
+    let monthHtml = '<div class="sg-months">';
+    weeks.forEach((week, i) => {
+        const mo = week[0].date.getMonth();
+        const showLabel = i === 0 || mo !== weeks[i - 1][0].date.getMonth();
+        monthHtml += `<div class="sg-month-col">${showLabel ? MONTHS[mo] : ''}</div>`;
+    });
+    monthHtml += '</div>';
+
+    // Week columns
+    let gridHtml = '<div class="streak-graph">';
     weeks.forEach(week => {
-        html += '<div class="sg-week">';
+        gridHtml += '<div class="sg-week">';
         week.forEach(day => {
             if (day.isFuture) {
-                html += `<div class="sg-cell sg-future" data-level="0" data-tip=""></div>`;
+                gridHtml += `<div class="sg-cell sg-future" data-level="0" data-tip=""></div>`;
             } else {
                 const dateLabel = day.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
                 const tip = day.mins > 0 ? `${day.mins} min \u2014 ${dateLabel}` : `No activity \u2014 ${dateLabel}`;
-                html += `<div class="sg-cell" data-level="${day.level}" data-tip="${tip.replace(/"/g,'&quot;')}"></div>`;
+                gridHtml += `<div class="sg-cell" data-level="${day.level}" data-tip="${tip.replace(/"/g,'&quot;')}"></div>`;
             }
         });
-        html += '</div>';
+        gridHtml += '</div>';
     });
-    html += '</div>';
-    container.innerHTML = html;
+    gridHtml += '</div>';
+
+    container.innerHTML = monthHtml + gridHtml;
 
     // Tooltip
     const tooltip = document.getElementById('sgTooltip');
